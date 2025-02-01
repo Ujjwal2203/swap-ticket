@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 export function StickyNavbar() {
   return (
     <div className="w-full">
-      <nav className="sticky top-0 z-10 h-max w-full bg-white shadow-md">
+      <nav className="sticky top-0 z-50 w-full bg-white shadow-md">
         <div className="flex items-center justify-between px-16 py-8">
           {/* Logo Section */}
           <Link

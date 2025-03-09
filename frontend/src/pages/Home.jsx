@@ -1,49 +1,79 @@
-import React from "react";
+import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
+import { AuthContext } from "../pages/context"; // Import the AuthContext
 
 const Home = () => {
+  const { isLogin } = useContext(AuthContext);
+  const [konamiCode, setKonamiCode] = useState([]);
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+
+  // Konami Code Input Detection
+  const konamiSequence = [
+    "ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"
+  ];
+
+  const handleKeyPress = (e) => {
+    const newKonamiCode = [...konamiCode, e.key];
+    setKonamiCode(newKonamiCode);
+    if (newKonamiCode.length > konamiSequence.length) {
+      newKonamiCode.shift(); // Keep only the latest 10 inputs
+    }
+    if (newKonamiCode.join() === konamiSequence.join()) {
+      setShowEasterEgg(true); // Trigger Easter Egg when the code is complete
+    }
+  };
+
+  React.useEffect(() => {
+    window.addEventListener("keydown", handleKeyPress);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [konamiCode]);
+
   return (
-    <div className="w-full text-white bg-[#0F172A] overflow-hidden">
+    <div className="w-full text-gray-800 bg-[#F9FAFB] overflow-hidden">
       {/* Hero Section */}
-      <div className="relative w-full h-[90vh] flex flex-col justify-center items-center text-center bg-gradient-to-br from-[#2C3E50] via-[#34495E] to-[#2C3E50]">
+      <div className="relative w-full h-[100vh] flex flex-col justify-center items-center text-center bg-gradient-to-br from-[#F9FAFB] to-[#E2E8F0]">
         {/* Gradient Decorative Background */}
         <div className="absolute inset-0 z-0">
-          <div className="absolute top-20 left-16 w-44 h-44 bg-pink-400 opacity-15 rounded-full blur-[120px]"></div>
-          <div className="absolute bottom-16 right-24 w-56 h-56 bg-yellow-300 opacity-15 rounded-full blur-[120px]"></div>
+          <div className="absolute top-12 left-10 w-96 h-96 bg-[#FFB6C1] opacity-10 rounded-full blur-[60px]"></div>
+          <div className="absolute bottom-8 right-16 w-96 h-96 bg-[#FF80AB] opacity-10 rounded-full blur-[60px]"></div>
         </div>
 
         {/* Content */}
-        <div className="z-10 px-6">
-          <h1 className="text-5xl md:text-6xl font-extrabold drop-shadow-lg leading-tight">
-            Discover <span className="text-yellow-300">Incredible Events</span>{" "}
-            Near You
+        <div className="z-10 px-6 md:px-12 text-center">
+          <h1 className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#5A67D8] to-[#4C51BF] drop-shadow-2xl leading-tight">
+            Build the Future of Your Events
+            <br />
+            <span className="text-[#2D3748]">Where Innovation Meets Execution</span>
           </h1>
-          <p className="mt-4 text-lg md:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-            Find, reserve, and enjoy exclusive experiences with ease. Your next
-            adventure starts here!
+          <p className="mt-4 text-lg text-[#2D3748] max-w-3xl mx-auto leading-relaxed">
+            Transform your ideas into unforgettable events. Control every detail effortlessly with our platform.
           </p>
-          <div className="mt-6 flex justify-center items-center gap-2">
+          <div className="mt-6 flex justify-center items-center gap-4">
             <input
               type="text"
-              placeholder="Search events near you"
-              className="py-2 px-4 w-64 md:w-80 rounded-l-md text-gray-800 focus:outline-none shadow-md"
+              placeholder="Find your next big event"
+              className="py-3 px-6 w-64 md:w-80 rounded-l-lg text-gray-800 focus:outline-none shadow-lg border-2 border-gray-300"
             />
-            <button className="bg-yellow-400 text-gray-900 font-medium py-2 px-6 rounded-r-md hover:bg-yellow-500 transition duration-300 shadow-md">
-              Search
+            <button className="bg-[#FF70A6] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#FF4078] transition duration-300 shadow-lg">
+              Explore Now
             </button>
           </div>
         </div>
 
-        {/* Call-to-Action Button */}
-
-        <div className="mt-8 z-10">
-          <Link
-            to="/login-signup"
-            className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium py-2 px-6 rounded-full shadow-lg hover:scale-105 transition-transform duration-300"
-          >
-            Get Started Now
-          </Link>
-        </div>
+        {/* Conditionally Rendered Call-to-Action Button */}
+        {!isLogin && (
+          <div className="mt-8 z-10">
+            <Link
+              to="/login-signup"
+              className="bg-gradient-to-r from-[#FF70A6] to-[#FF66B2] text-white font-bold py-3 px-8 rounded-full shadow-xl hover:scale-105 transition-transform duration-300"
+            >
+              Get Started
+            </Link>
+          </div>
+        )}
 
         {/* Scroll Indicator */}
         <div className="absolute bottom-6 animate-bounce z-10">
@@ -52,89 +82,99 @@ const Home = () => {
       </div>
 
       {/* Feature Section */}
-      <div className="w-full h-screen py-8 px-8 bg-gradient-to-r from-[#1F2937] via-[#2C3E50] to-[#1F2937] text-white flex items-center justify-center">
+      <div className="w-full py-16 px-8 bg-gradient-to-r from-[#F9FAFB] via-[#F1F5F9] to-[#F9FAFB] text-gray-900 flex items-center justify-center">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 w-full max-w-7xl">
           {/* Left Content */}
           <div className="md:w-1/2 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full text-sm font-medium mb-4">
-              <span className="text-gray-300">✨ NEW</span>
-              <span>Event Ticketing Platform</span>
+            <div className="inline-flex items-center gap-2 bg-[#FFEEF2] px-4 py-2 rounded-full text-sm font-medium mb-4">
+              <span className="text-[#FF70A6]">✨ NEW</span>
+              <span>Next-Level Event Management</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Seamless Event Management, Tailored for You
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-[#2D3748]">
+              Seamless Event Creation, Perfect Execution
             </h2>
-            <p className="text-gray-400 text-lg mb-6">
-              Experience an intuitive platform with minimal fees and powerful
-              tools for managing events effortlessly.
+            <p className="text-gray-700 text-lg mb-6">
+              Whether you’re hosting a small gathering or a large event, our platform helps you manage everything in one place.
             </p>
             <Link to="/create-event">
-            <button className="bg-pink-500 hover:bg-pink-600 text-white font-medium py-2 px-6 rounded-lg transition duration-300 shadow-md">
-              Create Your Event
-            </button>
+              <button className="bg-[#FF70A6] hover:bg-[#FF4078] text-white font-bold py-3 px-8 rounded-full transition duration-300 shadow-md">
+                Create Your Event
+              </button>
             </Link>
           </div>
 
           {/* Right Image/Graphic */}
           <div className="md:w-1/2 flex justify-center">
-            <div className="bg-white p-6 rounded-2xl shadow-2xl hover:scale-105 transition-transform duration-300">
-              <div className="w-40 h-40 mx-auto flex items-center justify-center">
+            <div className="bg-white p-6 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-300">
+              <div className="w-48 h-48 mx-auto flex items-center justify-center">
                 <img
                   src="https://via.placeholder.com/150"
-                  alt="Event Badge"
+                  alt="Event Icon"
                   className="object-contain"
                 />
               </div>
-              <p className="text-center text-green-500 mt-4 font-medium">
-                Event organizers, look no further!
+              <p className="text-center text-[#2D3748] mt-4 font-medium">
+                For Organizers, by Organizers
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Testimonial Section */}
-      <div className="w-full py-16 px-8 bg-[#2C3E50] text-white text-center">
-        <h3 className="text-4xl font-bold mb-6 text-yellow-300">
-          Echoes of Excitement:{" "}
-          <span className="text-white">Our Fans Spread the Word</span>
-        </h3>
-        <p className="text-lg text-gray-300 mb-8 max-w-3xl mx-auto">
-          See what our excited users are saying about their experience with us.
-          Their stories inspire us to keep improving and delivering the best
-          events!
-        </p>
-        <div className="flex flex-wrap justify-center gap-6">
-          <div className="w-72 bg-[#34495E] p-6 rounded-xl shadow-lg hover:scale-105 transition-transform duration-300">
-            <p className="text-gray-300">
-              "The best platform to discover and manage events. Highly
-              recommend!"
-            </p>
-            <h5 className="mt-4 font-bold text-yellow-300">— Alex Johnson</h5>
-          </div>
-          <div className="w-72 bg-[#34495E] p-6 rounded-xl shadow-lg hover:scale-105 transition-transform duration-300">
-            <p className="text-gray-300">
-              "Seamless experience from start to finish. Booking events has
-              never been easier."
-            </p>
-            <h5 className="mt-4 font-bold text-yellow-300">— Maria Lopez</h5>
+      {/* Easter Egg Section (Triggered by Konami Code) */}
+      {showEasterEgg && (
+        <div className="fixed top-0 left-0 w-full h-full bg-[#FF70A6] text-white flex justify-center items-center z-50">
+          <div className="text-center">
+            <h1 className="text-5xl font-bold mb-4">🎉 You Found an Easter Egg! 🎉</h1>
+            <p className="text-2xl mb-8">Now go ahead and have some fun with this Easter egg! 🎮</p>
+            <button
+              onClick={() => setShowEasterEgg(false)}
+              className="bg-[#FF4078] hover:bg-[#FF1D52] py-3 px-8 rounded-full font-bold"
+            >
+              Close
+            </button>
           </div>
         </div>
+      )}
 
-        <div className="w-full py-16 px-8  from-[#1F2937] via-[#2C3E50] to-[#1F2937] text-white flex items-center justify-center">
-          <div className="w-full max-w-4xl bg-[#34495E] p-8 rounded-2xl text-center">
-            <h2 className="text-3xl font-bold mb-4 text-yellow-300">
-              List Your Event with Us
-            </h2>
-            <p className="text-lg text-gray-300 mb-6">
-              Lowest fees and tailored features for your events. Partner with us
-              and get your events listed on Swap Tickets.
+      {/* Testimonial Section */}
+      <div className="w-full py-16 px-8 bg-[#F9FAFB] text-gray-900 text-center">
+        <h3 className="text-4xl font-bold mb-6 text-[#5A67D8]">
+          What Our Users Are Saying
+        </h3>
+        <p className="text-lg text-[#4A5568] mb-8 max-w-3xl mx-auto">
+          Our users rave about the simplicity and efficiency our platform provides. Here's why.
+        </p>
+        <div className="flex flex-wrap justify-center gap-6">
+          <div className="w-72 bg-[#FFEEF2] p-6 rounded-xl shadow-lg hover:scale-105 transition-transform duration-300">
+            <p className="text-gray-700">
+              "This platform has changed how I plan events. So intuitive and easy to use!"
             </p>
-            <Link to="/create-event">
-              <button className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium py-2 px-6 rounded-full hover:scale-105 transition-transform duration-300">
-                Create an Event
-              </button>
-            </Link>
+            <h5 className="mt-4 font-bold text-[#2D3748]">— Zoe Lee</h5>
           </div>
+          <div className="w-72 bg-[#FFEEF2] p-6 rounded-xl shadow-lg hover:scale-105 transition-transform duration-300">
+            <p className="text-gray-700">
+              "I love the flexibility and customization options. Every detail is at my fingertips."
+            </p>
+            <h5 className="mt-4 font-bold text-[#2D3748]">— Jake Turner</h5>
+          </div>
+        </div>
+      </div>
+
+      {/* Final Call to Action */}
+      <div className="w-full py-16 px-8 bg-gradient-to-r from-[#F9FAFB] via-[#F1F5F9] to-[#F9FAFB] text-gray-900 text-center">
+        <div className="w-full max-w-4xl bg-[#FF70A6] p-8 rounded-2xl text-center mx-auto">
+          <h2 className="text-3xl font-bold mb-4 text-white">
+            Ready to Create Your Event?
+          </h2>
+          <p className="text-lg text-white mb-6">
+            Take control of your events and bring them to life with just a few clicks.
+          </p>
+          <Link to="/create-event">
+            <button className="bg-[#FF4078] hover:bg-[#FF1D52] text-white font-bold py-3 px-8 rounded-full transition-transform duration-300">
+              Get Started Now
+            </button>
+          </Link>
         </div>
       </div>
     </div>

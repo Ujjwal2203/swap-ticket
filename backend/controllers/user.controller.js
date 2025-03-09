@@ -22,10 +22,10 @@ const generateRefreshAndAccessTokens = async(userId) =>{
 
 
 const registeredUser = asyncHandler( async(req,res)=>{
-  const {userName, email, fullName, password , phoneNumber } = req.body
+  const {userName, email, password } = req.body
 
 
-  if([fullName,userName,password,email].some((fields)=>fields?.trim() ==="")){
+  if([userName,password,email].some((fields)=>fields?.trim() ==="")){
     throw new apiError(400,"all fields are required")
   }
 
@@ -38,11 +38,9 @@ const registeredUser = asyncHandler( async(req,res)=>{
   }
 
   const user = await User.create({
-    fullName,
     email,
     password,
     userName: userName.toLowerCase(),
-    phoneNumber
   })
 
   const createdUser = await User.findById(user._id).select("-password -refreshToken")
@@ -59,7 +57,7 @@ const registeredUser = asyncHandler( async(req,res)=>{
 
 const loginUser = asyncHandler(async(req,res)=>{
 
-  const {userName , password , email , phoneNumber} = req.body
+  const {userName , password , email } = req.body
   if(!(email||userName)){
     throw new apiError(400 , "email or username is required")
   }

@@ -1,25 +1,67 @@
-import React from 'react'
-import { StickyNavbar } from './components/Navbar'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { MainLayout } from './layouts/Mainlayout'
-import Home from './pages/Home'
-import ResellTickets from './pages/ResellTickets'
-import CreateEvent from './pages/CreateEvent'
-import LoginSignup from './pages/LoginSignup'
+import React, { useContext } from "react";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { MainLayout } from "./layouts/Mainlayout";
+import Home from "./pages/Home";
+import LoginSignup from "./pages/LoginSignup";
+import CreateEvent from "./pages/CreateEvent";
+import ResellTickets from "./pages/ResellTickets";
+import { AuthContext } from "./pages/context";
+
+// PrivateRoute component for handling authentication
+const PrivateRoute = ({ children }) => {
+  const { isLogin } = useContext(AuthContext);
+  return isLogin ? children : <Navigate to="/login-signup" />;
+};
 
 export default function App() {
   return (
-    <>
-      <BrowserRouter>
+    <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainLayout />}> 
-          <Route index element={<Home />} />
-          <Route path="/resell-tickets" element={<ResellTickets />} />
-          <Route path="/create-event" element={<CreateEvent />} />
-          <Route path="/login-signup" element={<LoginSignup />} />
+        {/* Redirect from / to /home */}
+        <Route path="/" element={<Navigate to="/home" />} />
+
+        {/* MainLayout wrapper for all pages */}
+        <Route path="/" element={<MainLayout />}>
+          {/* Home route */}
+          <Route path="/home" element={<Home />} />
+
+          {/* Private routes */}
+          <Route
+            path="/resell-tickets"
+            element={
+              <PrivateRoute>
+                <ResellTickets />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/create-event"
+            element={
+              <PrivateRoute>
+                <CreateEvent />
+              </PrivateRoute>
+            }
+          />
         </Route>
+
+        {/* Public routes (Login and Signup) */}
+        <Route
+          path="/login-signup"
+          element={
+            <AuthContext.Consumer>
+              {({ isLogin }) => (isLogin ? <Navigate to="/home" /> : <LoginSignup />)}
+            </AuthContext.Consumer>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <AuthContext.Consumer>
+              {({ isLogin }) => (!isLogin ? <LoginSignup /> : <Navigate to="/home" />)}
+            </AuthContext.Consumer>
+          }
+        />
       </Routes>
     </BrowserRouter>
-    </>
-  )
+  );
 }

@@ -1,7 +1,6 @@
-import React, { useContext, useState } from "react";
-import axios from 'axios'
+import React, { useState, useContext } from "react";
+import axios from "axios";
 import { AuthContext } from "./context";
-
 
 const LoginSignup = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,7 +11,9 @@ const LoginSignup = () => {
         <h2 className="text-3xl font-extrabold mb-6 text-gray-800 text-center tracking-wide">
           {isLogin ? "Login to Your Account" : "Create an Account"}
         </h2>
+
         {isLogin ? <Login /> : <Signup />}
+
         <div className="mt-6 text-center">
           <button
             className="text-teal-500 hover:underline"
@@ -26,22 +27,48 @@ const LoginSignup = () => {
   );
 };
 
-
-
-export default LoginSignup;
-
-export const Login = () => {
+// Login Form Component
+const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const {  setIsLogin } = useContext(AuthContext);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const { setIsLogin, setUserName  } = useContext(AuthContext);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Form validation
+    if (!email || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    // Simple email validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    // Password length validation
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
     axios.post('http://localhost:8000/ticket/login', { email, password })
-      .then(result => {console.log(result)
-        setIsLogin(true)
+      .then(result => {
+        console.log(result);
+        setSuccessMessage("Login successful!");
+        // setUserName(name);
+        setIsLogin(true);
+        setError('');
       })
-      .catch(err => console.log(err));
+      .catch(err => {
+        console.error(err);
+        setError("Invalid credentials. Please try again.");
+      });
   };
 
   return (
@@ -55,6 +82,7 @@ export const Login = () => {
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
         />
       </div>
       <div className="mb-6">
@@ -66,8 +94,11 @@ export const Login = () => {
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your password"
         />
       </div>
+      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {successMessage && <p className="text-green-500 text-sm mb-4">{successMessage}</p>}
       <button
         type="submit"
         className="w-full bg-teal-500 text-white py-2 rounded-lg hover:bg-teal-600 transition duration-200"
@@ -78,18 +109,49 @@ export const Login = () => {
   );
 };
 
-export const Signup = () => {
+// Signup Form Component
+const Signup = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    axios.post('http://localhost:8000/auth/register', { userName:name, email, password })
-      .then(result => {console.log(result)
-        window.location.href = '/login-signup'
+
+    // Form validation
+    if (!name || !email || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    // Simple email validation
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    // Password length validation
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    axios.post('http://localhost:8000/auth/register', { userName: name, email, password })
+      .then(result => {
+        console.log(result);
+        setSuccessMessage("Signup successful! You can now log in.");
+        setError('');
+        setTimeout(() => {
+          window.location.href = '/login-signup'; // Redirect to login page
+        }, 2000);
       })
-      .catch(err => console.log(err));
+      .catch(err => {
+        console.error(err);
+        setError("An error occurred. Please try again.");
+      });
   };
 
   return (
@@ -103,6 +165,7 @@ export const Signup = () => {
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          placeholder="Enter your name"
         />
       </div>
       <div className="mb-6">
@@ -114,6 +177,7 @@ export const Signup = () => {
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          placeholder="Enter your email"
         />
       </div>
       <div className="mb-6">
@@ -125,8 +189,11 @@ export const Signup = () => {
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your password"
         />
       </div>
+      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {successMessage && <p className="text-green-500 text-sm mb-4">{successMessage}</p>}
       <button
         type="submit"
         className="w-full bg-teal-500 text-white py-2 rounded-lg hover:bg-teal-600 transition duration-200"
@@ -136,3 +203,5 @@ export const Signup = () => {
     </form>
   );
 };
+
+export default LoginSignup;

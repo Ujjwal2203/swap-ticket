@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { MainLayout } from "./layouts/Mainlayout";
 import Home from "./pages/Home";
-import LoginSignup from "./pages/LoginSignup";
+import LoginSignup from "./pages/LoginSignup"; 
 import CreateEvent from "./pages/CreateEvent";
 import ResellTickets from "./pages/ResellTickets";
 import { AuthContext } from "./pages/context";

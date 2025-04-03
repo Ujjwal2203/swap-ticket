@@ -1,35 +1,36 @@
 import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../pages/context"; // Import the AuthContext
+import SearchBar from "../components/Searchbar";
 
 const Home = () => {
   const { isLogin } = useContext(AuthContext);
-  const [konamiCode, setKonamiCode] = useState([]);
+  // const [konamiCode, setKonamiCode] = useState([]);
   const [showEasterEgg, setShowEasterEgg] = useState(false);
 
   // Konami Code Input Detection
-  const konamiSequence = [
-    "ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"
-  ];
+  // const konamiSequence = [
+  //   "ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"
+  // ];
 
-  const handleKeyPress = (e) => {
-    const newKonamiCode = [...konamiCode, e.key];
-    setKonamiCode(newKonamiCode);
-    if (newKonamiCode.length > konamiSequence.length) {
-      newKonamiCode.shift(); // Keep only the latest 10 inputs
-    }
-    if (newKonamiCode.join() === konamiSequence.join()) {
-      setShowEasterEgg(true); // Trigger Easter Egg when the code is complete
-    }
-  };
+  // const handleKeyPress = (e) => {
+  //   const newKonamiCode = [...konamiCode, e.key];
+  //   setKonamiCode(newKonamiCode);
+  //   if (newKonamiCode.length > konamiSequence.length) {
+  //     newKonamiCode.shift(); // Keep only the latest 10 inputs
+  //   }
+  //   if (newKonamiCode.join() === konamiSequence.join()) {
+  //     setShowEasterEgg(true); // Trigger Easter Egg when the code is complete
+  //   }
+  // };
 
-  React.useEffect(() => {
-    window.addEventListener("keydown", handleKeyPress);
+  // React.useEffect(() => {
+  //   window.addEventListener("keydown", handleKeyPress);
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyPress);
-    };
-  }, [konamiCode]);
+  //   return () => {
+  //     window.removeEventListener("keydown", handleKeyPress);
+  //   };
+  // }, [konamiCode]);
 
   return (
     <div className="w-full text-gray-800 bg-[#F9FAFB] overflow-hidden">
@@ -52,19 +53,20 @@ const Home = () => {
             Transform your ideas into unforgettable events. Control every detail effortlessly with our platform.
           </p>
           <div className="mt-6 flex justify-center items-center gap-4">
-            <input
+            {/* <input
               type="text"
               placeholder="Find your next big event"
               className="py-3 px-6 w-64 md:w-80 rounded-l-lg text-gray-800 focus:outline-none shadow-lg border-2 border-gray-300"
-            />
-            <button className="bg-[#FF70A6] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#FF4078] transition duration-300 shadow-lg">
+            /> */}
+            <SearchBar />
+            {/* <button className="bg-[#FF70A6] text-white font-bold py-3 px-6 rounded-lg hover:bg-[#FF4078] transition duration-300 shadow-lg">
               Explore Now
-            </button>
+            </button> */}
           </div>
         </div>
 
         {/* Conditionally Rendered Call-to-Action Button */}
-        {!isLogin && (
+        {/* {!isLogin && (
           <div className="mt-8 z-10">
             <Link
               to="/login-signup"
@@ -73,7 +75,7 @@ const Home = () => {
               Get Started
             </Link>
           </div>
-        )}
+        )} */}
 
         {/* Scroll Indicator */}
         <div className="absolute bottom-6 animate-bounce z-10">
@@ -107,11 +109,11 @@ const Home = () => {
           <div className="md:w-1/2 flex justify-center">
             <div className="bg-white p-6 rounded-2xl shadow-lg hover:scale-105 transition-transform duration-300">
               <div className="w-48 h-48 mx-auto flex items-center justify-center">
-                <img
-                  src="https://via.placeholder.com/150"
-                  alt="Event Icon"
-                  className="object-contain"
-                />
+              <img
+                      src="https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=800"
+                      alt="Event Planning"
+                      className="rounded-2xl object-cover w-full h-full"
+                    />
               </div>
               <p className="text-center text-[#2D3748] mt-4 font-medium">
                 For Organizers, by Organizers

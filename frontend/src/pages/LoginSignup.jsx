@@ -1,9 +1,11 @@
 import React, { useState, useContext } from "react";
 import axios from "axios";
 import { AuthContext } from "./context";
+import { useNavigate } from "react-router-dom";
 
 const LoginSignup = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const navigate = useNavigate(); 
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-teal-200 via-green-100 to-blue-100 px-4 overflow-hidden">
@@ -20,6 +22,14 @@ const LoginSignup = () => {
             onClick={() => setIsLogin(!isLogin)}
           >
             {isLogin ? "Don't have an account? Signup" : "Already have an account? Login"}
+          </button>
+        </div>
+        <div className="mt-6 text-center">
+          <button
+            className="bg-gray-300 text-indigo-700 font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-600 hover:text-white transition duration-300"
+            onClick={() => navigate("/")}
+          >
+            ⬅ Back to Home
           </button>
         </div>
       </div>

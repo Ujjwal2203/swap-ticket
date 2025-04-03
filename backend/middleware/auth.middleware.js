@@ -5,20 +5,28 @@ import {User} from "../models/user.models.js"
 
 export const verifyJWT = asyncHandler(async(req,res,next) => {    
   try {
-    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ","")  // usually in authorization header using bearer schema context of header looks like ->  Authorization = Bearer <Token> so we are removing Bearer with empty string to get token
-      if (!token) {
-      throw new apiError(401 , "authorization failed or unauthorized access ")
-    }
+    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+    if (!token) throw new apiError(401, "Authorization failed or unauthorized access");
   
-    // using jwt method verify to check for token
-    const decodedToken =   jwt.verify(token , process.env.ACCESS_TOKEN_SECRET)
-    const user = await User.findById(decodedToken?._id).select("-password -refreshToken")
-    if (!user) {
-      throw new apiError(401,"Invalid access tokem")
-    }
-    req.user = user 
-    next()
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (err, decodedToken) => {
+      if (err) {
+        // If access token expired, try refreshing
+        const refreshToken = req.cookies.refreshToken;
+        if (refreshToken) {
+          const newAccessToken = await refreshAccessToken(refreshToken);
+          res.cookie("accessToken", newAccessToken, { httpOnly: true, secure: true, sameSite: "Strict" });
+          req.user = decodedToken;
+          return next();
+        } else {
+          throw new apiError(401, "Access token expired. Please re-login.");
+        }
+      }
+      
+      req.user = decodedToken;
+      next();
+    });
   } catch (error) {
-      throw new apiError(401, error?.message || "invalid Access Token")
+    throw new apiError(401, error?.message || "Invalid Access Token");
   }
+  
 }) 

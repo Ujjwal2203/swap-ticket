@@ -5,7 +5,9 @@ import Home from "./pages/Home";
 import LoginSignup from "./pages/LoginSignup"; 
 import CreateEvent from "./pages/CreateEvent";
 import ResellTickets from "./pages/ResellTickets";
+// import MovieForm from "./pages/MovieForm"; // Import the new MovieForm component
 import { AuthContext } from "./pages/context";
+import MovieForm from "./components/Movieform";
 
 // PrivateRoute component for handling authentication
 const PrivateRoute = ({ children }) => {
@@ -61,6 +63,9 @@ export default function App() {
             </AuthContext.Consumer>
           }
         />
+
+        {/* MovieForm route for displaying movie details */}
+        <Route path="/movie-form" element={<MovieForm />} />
       </Routes>
     </BrowserRouter>
   );

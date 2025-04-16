@@ -1,10 +1,26 @@
-import React, { useState, useRef, useEffect } from "react";
+// ResellTickets.jsx
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { Link } from "react-router-dom";
-import { Search, X } from "lucide-react";
+import { Search } from "lucide-react";
+import { MovieContext } from "../components/Searchbar";
+import axios from "axios";
+import { ToastContainer, toast } from "react-toastify"; // Toast Import
+import "react-toastify/dist/ReactToastify.css";
+import { MyListingsContext } from "../MyListingsContext";
+import { useNavigate } from "react-router-dom";
 
 const ResellTickets = () => {
+  const { selectedMovie, setSelectedMovie } = useContext(MovieContext);
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedMovie, setSelectedMovie] = useState(null);
+
+  useEffect(() => {
+    if (!selectedMovie) {
+      const savedMovie = localStorage.getItem("selectedMovie");
+      if (savedMovie) {
+        setSelectedMovie(JSON.parse(savedMovie));
+      }
+    }
+  }, [selectedMovie, setSelectedMovie]);
 
   const nextStep = () => {
     if (selectedMovie || currentStep >= 2) {
@@ -19,9 +35,10 @@ const ResellTickets = () => {
       <div className="w-full max-w-2xl bg-white p-8 rounded-2xl shadow-lg">
         {/* Step Content */}
         <div className="pb-6">
-          {currentStep === 1 && <Step1 setSelectedMovie={setSelectedMovie} />}
+          {currentStep === 1 && <Step1 />}
           {currentStep === 2 && <Step2 selectedMovie={selectedMovie} />}
           {currentStep === 3 && <Step3 />}
+          {currentStep === 4 && <Step4 />}
         </div>
 
         {/* Navigation Buttons */}
@@ -29,7 +46,9 @@ const ResellTickets = () => {
           <button
             onClick={prevStep}
             className={`bg-gray-300 text-gray-700 px-6 py-3 rounded-full text-lg font-semibold transition ${
-              currentStep === 1 ? "opacity-50 cursor-not-allowed" : "hover:scale-105"
+              currentStep === 1
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:scale-105"
             }`}
             disabled={currentStep === 1}
           >
@@ -46,13 +65,16 @@ const ResellTickets = () => {
           >
             {currentStep === 3 ? "Next" : "Next"}
           </button>
+
         </div>
       </div>
     </div>
   );
 };
 
-const Step1 = ({ setSelectedMovie }) => {
+// ------------ STEP 1 ------------
+const Step1 = () => {
+  const { setSelectedMovie } = useContext(MovieContext);
   const [searchQuery, setSearchQuery] = useState("");
   const [movies, setMovies] = useState([]);
   const [filteredMovies, setFilteredMovies] = useState([]);
@@ -76,7 +98,8 @@ const Step1 = ({ setSelectedMovie }) => {
         const response = await fetch(
           "https://api.themoviedb.org/3/trending/all/day?api_key=d44c90a7e9d0bf546cab4bb5b5cbdb90"
         );
-        if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+        if (!response.ok)
+          throw new Error(`API request failed with status ${response.status}`);
 
         const data = await response.json();
         if (data.results && data.results.length > 0) {
@@ -102,9 +125,10 @@ const Step1 = ({ setSelectedMovie }) => {
     }
 
     const filtered = movies
-      .filter((movie) =>
-        movie.title?.toLowerCase().includes(query) ||
-        movie.name?.toLowerCase().includes(query)
+      .filter(
+        (movie) =>
+          movie.title?.toLowerCase().includes(query) ||
+          movie.name?.toLowerCase().includes(query)
       )
       .slice(0, 5);
 
@@ -114,14 +138,16 @@ const Step1 = ({ setSelectedMovie }) => {
   const handleMovieSelection = (movie) => {
     setSearchQuery(movie.title || movie.name);
     setSelectedMovie(movie);
+    localStorage.setItem("selectedMovie", JSON.stringify(movie));
     setShowDropdown(false);
   };
 
   return (
     <div className="animate-fadeIn">
-      <h1 className="text-3xl font-bold mb-4 text-center text-gray-800">Sell Your Tickets Fast</h1>
+      <h1 className="text-3xl font-bold mb-4 text-center text-gray-800">
+        Sell Your Tickets Fast
+      </h1>
 
-      {/* Search Bar */}
       <div className="relative mb-6" ref={dropdownRef}>
         <div className="relative">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -149,9 +175,12 @@ const Step1 = ({ setSelectedMovie }) => {
                     alt={movie.title || movie.name}
                     className="w-16 h-24 rounded-lg object-cover shadow-md"
                   />
-                  <h3 className="ml-4 font-semibold">{movie.title || movie.name}</h3>
-                  <span className="ml-auto text-gray-500">⭐ {movie.vote_average ? movie.vote_average.toFixed(1) : "N/A"}
-
+                  <h3 className="ml-4 font-semibold">
+                    {movie.title || movie.name}
+                  </h3>
+                  <span className="ml-auto text-gray-500">
+                    ⭐{" "}
+                    {movie.vote_average ? movie.vote_average.toFixed(1) : "N/A"}
                   </span>
                 </div>
               ))}
@@ -159,6 +188,7 @@ const Step1 = ({ setSelectedMovie }) => {
           </div>
         )}
       </div>
+
       <ul className="space-y-4 mb-6">
         <li className="flex items-start space-x-4">
           <span className="w-8 h-8 flex items-center justify-center bg-pink-500 text-white text-lg font-bold rounded-full">
@@ -189,7 +219,7 @@ const Step1 = ({ setSelectedMovie }) => {
           </p>
         </li>
       </ul>
-      
+
       <div className="flex justify-between items-center bg-gray-100 p-4 rounded-md">
         <span className="text-gray-600 font-medium">
           Want to organize an event?
@@ -201,27 +231,33 @@ const Step1 = ({ setSelectedMovie }) => {
         </Link>
       </div>
     </div>
-    
   );
 };
 
-
+// ------------ STEP 2 ------------
 const Step2 = ({ selectedMovie }) => {
   return (
     <div className="animate-fadeIn">
-      <h1 className="text-4xl font-extrabold mb-6 text-center text-gray-800">Step 2: Confirm Details</h1>
-      <p className="text-xl text-gray-600 text-center mb-6">Please confirm your ticket details before proceeding.</p>
-
+      <h1 className="text-4xl font-extrabold mb-6 text-center text-gray-800">
+        Step 2: Confirm Details
+      </h1>
+      <p className="text-xl text-gray-600 text-center mb-6">
+        Please confirm your ticket details before proceeding.
+      </p>
       {selectedMovie ? (
         <div className="bg-gray-100 p-6 rounded-xl shadow-md flex items-center justify-between">
-          {/* Movie Details on Left */}
           <div className="flex-1">
-            <p className="text-lg text-gray-700 font-medium">🎬 Movie: {selectedMovie.title || selectedMovie.name}</p>
-            <p className="text-lg text-gray-700 font-medium">📅 Release Date: {selectedMovie.release_date || selectedMovie.first_air_date}</p>
-            <p className="text-lg text-gray-700 font-medium">⭐ Rating: {selectedMovie.vote_average?.toFixed(1) || "N/A"}</p>
+            <p className="text-lg text-gray-700 font-medium">
+              🎬 Movie: {selectedMovie.title || selectedMovie.name}
+            </p>
+            <p className="text-lg text-gray-700 font-medium">
+              📅 Release Date:{" "}
+              {selectedMovie.release_date || selectedMovie.first_air_date}
+            </p>
+            <p className="text-lg text-gray-700 font-medium">
+              ⭐ Rating: {selectedMovie.vote_average?.toFixed(1) || "N/A"}
+            </p>
           </div>
-
-          {/* Movie Image on Right */}
           <div className="ml-6">
             <img
               src={`https://image.tmdb.org/t/p/w200${selectedMovie.poster_path}`}
@@ -237,27 +273,181 @@ const Step2 = ({ selectedMovie }) => {
   );
 };
 
+// ------------ STEP 3 ------------
+
 const Step3 = () => {
+  const [verificationStatus, setVerificationStatus] = useState("");
+  const [email, setEmail] = useState("");
+
+  const handleVerifyEmail = async () => {
+    // console.log(email)
+    if (!email) {
+      setVerificationStatus("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      // Send a request to the backend to verify the forwarded ticket
+      const response = await axios.post(
+        "http://localhost:8000/auth/verify-ticket",
+        { email },
+        { withCredentials: true } // 🔥 THIS LINE is the fix
+      );
+      setVerificationStatus(response.data.message);
+    } catch (error) {
+      setVerificationStatus(
+        "Error verifying the ticket. Please try again later."
+      );
+    }
+  };
+
   return (
-    <div className="animate-fadeIn bg-white p-8 rounded-2xl shadow-md">
-      <h1 className="text-4xl font-extrabold mb-6 text-center text-gray-800">🎟 Step 3: Select Ticket Platform</h1>
-      <p className="text-xl text-gray-600 text-center mb-8">Choose where you purchased your ticket.</p>
+    <div className="animate-fadeIn bg-white p-8 rounded-2xl shadow-md space-y-6">
+      <h1 className="text-4xl font-extrabold text-center text-gray-800">
+        🎟 Step 3: Forward Your Ticket
+      </h1>
+      <p className="text-lg text-center text-gray-600">
+        To begin the resale process, forward your ticket confirmation email to
+        us.
+      </p>
 
-      {/* Ticket Platforms */}
-      <div className="flex flex-col gap-6">
-        <button className="flex items-center justify-between bg-gray-100 px-6 py-4 rounded-xl shadow-md hover:shadow-xl transform hover:scale-105 transition">
-          <span className="text-lg font-semibold text-gray-800">🎟 BookMyShow</span>
-          <img src="https://assets-in.bmscdn.com/static/2021/09/logo.svg" alt="BookMyShow" className="w-16 h-16 rounded-lg shadow-sm"/>
+      {/* Email Info */}
+      <div className="bg-gray-100 border-l-4 border-pink-500 p-6 rounded-lg shadow-sm">
+        <p className="text-lg font-semibold text-gray-800">
+          📬 Forward your email to:
+          <a
+            href="https://mail.google.com/mail/?view=cm&fs=1&to=Swaptickets001@gmail.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-2 font-semibold text-pink-600 underline hover:text-pink-700"
+          >
+            Swaptickets001@gmail.com
+          </a>
+        </p>
+        <p className="mt-2 text-gray-600 text-sm">
+          This helps us verify your ticket and make it available for resale.
+        </p>
+      </div>
+
+      {/* Email Input & Verification Button */}
+      <div className="flex flex-col items-center space-y-4">
+        <input
+          type="email"
+          className="p-3 border-2 rounded-lg w-3/4 sm:w-1/2"
+          placeholder="Enter your email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <button
+          className="bg-pink-600 text-white p-3 rounded-lg"
+          onClick={handleVerifyEmail}
+        >
+          Verify Forwarded Ticket
         </button>
+        {verificationStatus && (
+          <div className="mt-4 text-center text-lg">
+            <p>{verificationStatus}</p>
+          </div>
+        )}
+      </div>
 
-        <button className="flex items-center justify-between bg-gray-100 px-6 py-4 rounded-xl shadow-md hover:shadow-xl transform hover:scale-105 transition">
-          <span className="text-lg font-semibold text-gray-800">🎟 Paytm Insider</span>
-          <img src="https://assets.paytm.com/images/catalog/view/307196/1617697750163.png" alt="Paytm Insider" className="w-16 h-16 rounded-lg shadow-sm"/>
-        </button>
+      {/* Support Note */}
+      <div className="flex items-center bg-pink-50 p-4 rounded-md shadow-sm">
+        <span className="text-pink-600 text-xl mr-3">💡</span>
+        <p className="text-gray-700 text-sm">
+          Make sure your ticket is confirmed and includes all relevant details
+          like booking ID, seat number, and event info.
+        </p>
+      </div>
 
-        <button className="flex items-center justify-between bg-gray-100 px-6 py-4 rounded-xl shadow-md hover:shadow-xl transform hover:scale-105 transition">
-          <span className="text-lg font-semibold text-gray-800">🎟 District</span>
-          <img src="https://districts.ec.europa.eu/themes/custom/eudistrict/images/logo.svg" alt="District" className="w-16 h-16 rounded-lg shadow-sm"/>
+      {/* Tips / Extra Info */}
+      <ul className="space-y-3 text-gray-700">
+        <li className="flex items-start">
+          <span className="mr-2 text-pink-500">✔️</span>
+          Forward the **exact email** from your ticket provider.
+        </li>
+        <li className="flex items-start">
+          <span className="mr-2 text-pink-500">✔️</span>
+          Don't edit or crop any content.
+        </li>
+        <li className="flex items-start">
+          <span className="mr-2 text-pink-500">✔️</span>
+          We'll notify you once your ticket is listed!
+        </li>
+      </ul>
+
+      {/* Help Line */}
+      <div className="text-center pt-6 border-t border-gray-200">
+        <p className="text-gray-500 text-sm">
+          Need help? Reach out to our support team anytime.
+        </p>
+        <p className="text-pink-600 font-semibold mt-1">📞 +91 98765 43210</p>
+      </div>
+    </div>
+  );
+};
+
+// ------------ STEP 4 ------------
+const Step4 = () => {
+  const { selectedMovie } = useContext(MovieContext);
+  const { addListing } = useContext(MyListingsContext);
+  const [price, setPrice] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = () => {
+    if (!price || isNaN(price) || Number(price) <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    addListing({ movie: selectedMovie, price: parseFloat(price) });
+    toast.success("Ticket listed successfully!");
+    navigate("/my-listings");
+  };
+
+  return (
+    <div className="animate-fadeIn bg-white p-8 rounded-2xl shadow-md space-y-6">
+      <h1 className="text-4xl font-extrabold text-center text-gray-800">
+        💸 Step 4: Set Your Price
+      </h1>
+
+      {selectedMovie && (
+        <div className="flex flex-col sm:flex-row items-center bg-gray-50 p-6 rounded-xl shadow-sm">
+          <img
+            src={`https://image.tmdb.org/t/p/w200${selectedMovie.poster_path}`}
+            alt={selectedMovie.title || selectedMovie.name}
+            className="w-32 h-48 rounded-lg shadow-lg object-cover mb-4 sm:mb-0 sm:mr-6"
+          />
+          <div className="text-gray-700 space-y-2">
+            <p className="text-lg font-semibold">
+              🎬 {selectedMovie.title || selectedMovie.name}
+            </p>
+            <p>📅 {selectedMovie.release_date || selectedMovie.first_air_date}</p>
+            <p>⭐ {selectedMovie.vote_average?.toFixed(1) || "N/A"}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Price Input */}
+      <div className="text-center">
+        <label className="block text-lg font-medium text-gray-800 mb-2">
+          Set Your Ticket Price (INR)
+        </label>
+        <input
+          type="number"
+          placeholder="Enter price"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          className="w-1/2 p-3 border-2 border-gray-300 rounded-lg text-lg text-center focus:outline-none focus:ring-2 focus:ring-pink-500"
+        />
+      </div>
+
+      <div className="text-center">
+        <button
+          className="bg-pink-600 text-white px-6 py-3 rounded-full text-lg font-semibold hover:bg-pink-700 transition-all"
+          onClick={handleSubmit}
+        >
+          List My Ticket
         </button>
       </div>
     </div>

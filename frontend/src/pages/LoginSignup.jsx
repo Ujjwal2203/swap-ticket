@@ -1,14 +1,18 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useRef, useEffect } from "react";
 import axios from "axios";
 import { AuthContext } from "./context";
 import { useNavigate } from "react-router-dom";
+import { toast, Toaster } from "react-hot-toast";
+import { GoogleLogin } from "@react-oauth/google";
+// import { useGoogleOneTapLogin } from '@react-oauth/google';
 
 const LoginSignup = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-teal-200 via-green-100 to-blue-100 px-4 overflow-hidden">
+      <Toaster position="top-center" />
       <div className="max-w-md w-full bg-white p-8 rounded-3xl animate__animated animate__fadeIn">
         <h2 className="text-3xl font-extrabold mb-6 text-gray-800 text-center tracking-wide">
           {isLogin ? "Login to Your Account" : "Create an Account"}
@@ -21,7 +25,9 @@ const LoginSignup = () => {
             className="text-teal-500 hover:underline"
             onClick={() => setIsLogin(!isLogin)}
           >
-            {isLogin ? "Don't have an account? Signup" : "Already have an account? Login"}
+            {isLogin
+              ? "Don't have an account? Signup"
+              : "Already have an account? Login"}
           </button>
         </div>
         <div className="mt-6 text-center">
@@ -37,47 +43,48 @@ const LoginSignup = () => {
   );
 };
 
-// Login Form Component
+// Login Component
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const { setIsLogin, setUserName  } = useContext(AuthContext);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { setIsLogin } = useContext(AuthContext);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Form validation
     if (!email || !password) {
-      setError("Please fill in all fields.");
+      toast.error("Please fill in all fields.");
       return;
     }
 
-    // Simple email validation
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    // Password length validation
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
-      return;
-    }
-
-    axios.post('http://localhost:8000/ticket/login', { email, password })
-      .then(result => {
-        console.log(result);
-        setSuccessMessage("Login successful!");
-        // setUserName(name);
+    axios
+      .post(
+        "http://localhost:8000/ticket/login",
+        { email, password },
+        { withCredentials: true }
+      )
+      .then(() => {
+        toast.success("Login successful!");
         setIsLogin(true);
-        setError('');
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
-        setError("Invalid credentials. Please try again.");
+        toast.error("Invalid credentials. Please try again.");
+      });
+  };
+
+  const handleGoogleLogin = (credentialResponse) => {
+    axios
+      .post("http://localhost:8000/auth/google/onetap", {
+        credential: credentialResponse.credential, // The token from Google One Tap
+      })
+      .then((res) => {
+        toast.success("Google Login successful!");
+        setIsLogin(true); // Update the auth context
+      })
+      .catch((err) => {
+        console.error("Google login failed", err);
+        toast.error("Google login failed.");
       });
   };
 
@@ -95,6 +102,7 @@ const Login = () => {
           placeholder="Enter your email"
         />
       </div>
+
       <div className="mb-6">
         <label className="block text-gray-700 text-lg font-semibold mb-2">
           Password
@@ -107,65 +115,96 @@ const Login = () => {
           placeholder="Enter your password"
         />
       </div>
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-      {successMessage && <p className="text-green-500 text-sm mb-4">{successMessage}</p>}
+
       <button
         type="submit"
         className="w-full bg-teal-500 text-white py-2 rounded-lg hover:bg-teal-600 transition duration-200"
       >
         Login
       </button>
+
+      <div className="mt-4 text-center">
+        <GoogleLogin
+          clientId="806279261028-mmoc8fdjpfnr89tqe0quiac9v4nporrc.apps.googleusercontent.com"
+          onSuccess={handleGoogleLogin}
+          onError={() => toast.error("Google login failed!")}
+          cookiePolicy="single_host_origin" // Important for localhost origins
+          useOneTap // Enables Google One Tap
+        />
+
+        {/* <button onClick={()=>login()}>Sign in </button> */}
+      </div>
     </form>
   );
 };
 
-// Signup Form Component
+// Signup Component
 const Signup = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipRef = useRef(null);
+
+  const requirements = {
+    length: password.length >= 8,
+    lowercase: /[a-z]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+    number: /\d/.test(password),
+  };
+
+  const isPasswordValid = Object.values(requirements).every(Boolean);
+
+  useEffect(() => {
+    if (isPasswordValid) setShowTooltip(false);
+  }, [isPasswordValid]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Form validation
     if (!name || !email || !password) {
-      setError("Please fill in all fields.");
+      toast.error("Please fill in all fields.");
       return;
     }
 
-    // Simple email validation
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address.");
+      toast.error("Please enter a valid email address.");
       return;
     }
 
-    // Password length validation
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (!isPasswordValid) {
+      toast.error("Please meet all password requirements.");
       return;
     }
 
-    axios.post('http://localhost:8000/auth/register', { userName: name, email, password })
-      .then(result => {
-        console.log(result);
-        setSuccessMessage("Signup successful! You can now log in.");
-        setError('');
+    axios
+      .post("http://localhost:8000/auth/register", {
+        userName: name,
+        email,
+        password,
+      })
+      .then(() => {
+        toast.success("Signup successful! You can now log in.");
         setTimeout(() => {
-          window.location.href = '/login-signup'; // Redirect to login page
+          window.location.href = "/login-signup";
         }, 2000);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
-        setError("An error occurred. Please try again.");
+        toast.error("An error occurred. Please try again.");
       });
   };
 
+  const handlePasswordFocus = () => setShowTooltip(true);
+  const handlePasswordBlur = () => {
+    if (!isPasswordValid) {
+      setTimeout(() => setShowTooltip(false), 200);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} className="relative">
       <div className="mb-6">
         <label className="block text-gray-700 text-lg font-semibold mb-2">
           Name
@@ -178,6 +217,7 @@ const Signup = () => {
           placeholder="Enter your name"
         />
       </div>
+
       <div className="mb-6">
         <label className="block text-gray-700 text-lg font-semibold mb-2">
           Email
@@ -190,7 +230,8 @@ const Signup = () => {
           placeholder="Enter your email"
         />
       </div>
-      <div className="mb-6">
+
+      <div className="mb-6 relative">
         <label className="block text-gray-700 text-lg font-semibold mb-2">
           Password
         </label>
@@ -199,11 +240,65 @@ const Signup = () => {
           className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Enter your password"
+          onFocus={handlePasswordFocus}
+          onBlur={handlePasswordBlur}
+          placeholder="Create a strong password"
         />
+
+        {showTooltip && (
+          <div
+            ref={tooltipRef}
+            className="absolute top-full left-0 mt-2 bg-white border border-gray-300 rounded-xl shadow-md p-4 z-10 w-full"
+          >
+            <p className="text-gray-700 mb-2 font-semibold">
+              Password must include:
+            </p>
+            <ul className="text-sm space-y-1">
+              <li
+                className={`flex items-center ${
+                  requirements.length ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                <span className="mr-2">
+                  {requirements.length ? "✅" : "❌"}
+                </span>{" "}
+                At least 8 characters
+              </li>
+              <li
+                className={`flex items-center ${
+                  requirements.uppercase ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                <span className="mr-2">
+                  {requirements.uppercase ? "✅" : "❌"}
+                </span>{" "}
+                An uppercase letter (A–Z)
+              </li>
+              <li
+                className={`flex items-center ${
+                  requirements.lowercase ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                <span className="mr-2">
+                  {requirements.lowercase ? "✅" : "❌"}
+                </span>{" "}
+                A lowercase letter (a–z)
+              </li>
+              <li
+                className={`flex items-center ${
+                  requirements.number ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                <span className="mr-2">
+                  {requirements.number ? "✅" : "❌"}
+                </span>{" "}
+                A number (0–9)
+              </li>
+            </ul>
+          </div>
+        )}
       </div>
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-      {successMessage && <p className="text-green-500 text-sm mb-4">{successMessage}</p>}
+
       <button
         type="submit"
         className="w-full bg-teal-500 text-white py-2 rounded-lg hover:bg-teal-600 transition duration-200"

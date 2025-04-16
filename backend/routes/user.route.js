@@ -1,22 +1,40 @@
 import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.middleware.js";
-import { registeredUser, loginUser, logoutUser, checkUserSession, refreshAccessToken } from "../controllers/user.controller.js";
+import {
+  registeredUser,
+  loginUser,
+  logoutUser,
+  checkUserSession,
+  refreshAccessToken,
+  googleOneTapLogin, // One Tap handler
+  verifyTicketForwarded,
+} from "../controllers/user.controller.js";
+import razorpayRoutes from './razorpay.route.js';
 
 const router = Router();
 
 // Registration
 router.post("/register", registeredUser);
 
-// Login
+// Login (email/password)
 router.post("/login", loginUser);
 
-// Logout (Requires valid access token)
+// Google One Tap Login
+router.post('/google/onetap', googleOneTapLogin);
+
+// Logout
 router.post("/logout", verifyJWT, logoutUser);
 
-// Session Check (Validate refresh token to keep user logged in)
+// Session check
 router.get("/session", checkUserSession);
 
-// Refresh Access Token (If access token expires, generate a new one)
+// Refresh access token
 router.post("/refresh-token", refreshAccessToken);
+
+// Verify forwarded ticket
+router.post("/verify-ticket", verifyJWT, verifyTicketForwarded);
+
+// Razorpay payment route
+router.use("/payment", razorpayRoutes);
 
 export default router;

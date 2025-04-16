@@ -1,71 +1,84 @@
-import React, { useContext, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../pages/context";
+import { toast, Toaster } from "react-hot-toast";
 
 function StickyNavbar() {
-  const { isLogin, userName, setIsLogin } = useContext(AuthContext); // Get username from context
+  const { isLogin, userName, setIsLogin } = useContext(AuthContext);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
 
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
 
   const handleLogout = () => {
-    setIsLogin(false); // Update login status
-    localStorage.removeItem("authToken"); // Optionally clear local storage
-    // Add any logout functionality, like redirecting to home page
+    setIsLogin(false);
+    localStorage.removeItem("authToken");
+    setIsDropdownOpen(false);
+    toast.success("Logged out successfully");
+    navigate("/");
   };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="w-full">
+      <Toaster position="top-center" />
       <nav className="sticky top-0 z-50 w-full bg-white shadow-md">
         <div className="flex items-center justify-between px-16 py-8">
           {/* Logo Section */}
           <Link
-            to="/" // Goes to home
+            to="/"
             className="text-pink-600 font-bold text-3xl tracking-widest hover:scale-105 transition-transform pl-8"
           >
             Swap Tickets
           </Link>
 
-          {/* Right Section: Buttons */}
+          {/* Right Section */}
           <div className="flex items-center gap-12">
-            {/* Re-sell Tickets */}
             <Link
-              to="/resell-tickets" // This should route correctly now
+              to="/resell-tickets"
               className="text-black font-semibold text-lg cursor-pointer hover:underline hover:text-pink-600 transition-colors"
             >
               Re-sell tickets
             </Link>
 
-            {/* Create an Event Button */}
             <Link
-              to="/create-event" // This should route correctly now
+              to="/create-event"
               className="bg-pink-600 text-white text-lg font-semibold rounded-full px-8 py-4 shadow-md hover:shadow-lg hover:bg-pink-700 transition-all"
             >
               Create an event
             </Link>
 
-            {/* Login/Signup Button (only visible if not logged in) */}
             {!isLogin ? (
               <Link
-                to="/login-signup" // Links to login/signup
+                to="/login-signup"
                 className="border border-black text-black text-lg font-semibold rounded-full px-8 py-4 hover:bg-gray-100 hover:border-pink-600 hover:text-pink-600 transition-all"
               >
                 Login/Signup
               </Link>
             ) : (
-              // User Dropdown (visible when logged in)
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={toggleDropdown}
                   className="text-black text-lg font-semibold flex items-center space-x-2 cursor-pointer"
                 >
-                  <span className="font-bold">{userName}</span> {/* Display username here */}
+                  <span className="font-bold">{userName}</span>
                   <svg
                     className="w-4 h-4 text-black"
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20"
                     fill="currentColor"
-                    aria-hidden="true"
                   >
                     <path
                       fillRule="evenodd"
@@ -75,9 +88,8 @@ function StickyNavbar() {
                   </svg>
                 </button>
 
-                {/* Dropdown Menu */}
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-300 rounded-lg shadow-xl z-10">
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-300 rounded-lg shadow-xl z-10 animate-fadeIn">
                     <ul>
                       <li className="px-6 py-3 text-lg font-bold text-gray-700 hover:bg-gray-100 cursor-pointer">
                         <Link to="/manage-events">Manage Events</Link>

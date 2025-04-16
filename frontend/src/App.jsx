@@ -2,12 +2,15 @@ import React, { useContext } from "react";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { MainLayout } from "./layouts/Mainlayout";
 import Home from "./pages/Home";
-import LoginSignup from "./pages/LoginSignup"; 
+import LoginSignup from "./pages/LoginSignup";
 import CreateEvent from "./pages/CreateEvent";
 import ResellTickets from "./pages/ResellTickets";
-// import MovieForm from "./pages/MovieForm"; // Import the new MovieForm component
+// Import the MovieForm component
 import { AuthContext } from "./pages/context";
-import MovieForm from "./components/Movieform";
+// import GoogleRedirectHandler from "./pages/GoogleRedirectHandler.jsx";
+import MovieForm from "./components/Movieform.jsx";
+import MyListings from "./pages/Mylistings.jsx";
+import ThankYou from "./pages/Thankyou.jsx";
 
 // PrivateRoute component for handling authentication
 const PrivateRoute = ({ children }) => {
@@ -26,7 +29,14 @@ export default function App() {
         <Route path="/" element={<MainLayout />}>
           {/* Home route */}
           <Route path="/home" element={<Home />} />
-
+          <Route
+            path="/my-listings"
+            element={
+              <PrivateRoute>
+                <MyListings />
+              </PrivateRoute>
+            }
+          />
           {/* Private routes */}
           <Route
             path="/resell-tickets"
@@ -51,7 +61,9 @@ export default function App() {
           path="/login-signup"
           element={
             <AuthContext.Consumer>
-              {({ isLogin }) => (isLogin ? <Navigate to="/home" /> : <LoginSignup />)}
+              {({ isLogin }) =>
+                isLogin ? <Navigate to="/home" /> : <LoginSignup />
+              }
             </AuthContext.Consumer>
           }
         />
@@ -59,13 +71,22 @@ export default function App() {
           path="/signup"
           element={
             <AuthContext.Consumer>
-              {({ isLogin }) => (!isLogin ? <LoginSignup /> : <Navigate to="/home" />)}
+              {({ isLogin }) =>
+                !isLogin ? <LoginSignup /> : <Navigate to="/home" />
+              }
             </AuthContext.Consumer>
           }
         />
 
         {/* MovieForm route for displaying movie details */}
         <Route path="/movie-form" element={<MovieForm />} />
+
+        {/* Google OAuth callback route */}
+        {/* <Route
+          path="/auth/google/callback"
+          element={<GoogleRedirectHandler />} // Handle OAuth callback here
+        /> */}
+      <Route path="/thank-you" element={<ThankYou />  } />
       </Routes>
     </BrowserRouter>
   );

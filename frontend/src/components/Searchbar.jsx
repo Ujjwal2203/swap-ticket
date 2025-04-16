@@ -1,6 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext, createContext } from "react";
 import { Search, X } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // For navigation
+import { useNavigate } from "react-router-dom";
+
+// Create a context for persisting movie selection
+export const MovieContext = createContext();
+
+export const MovieProvider = ({ children }) => {
+  const [selectedMovie, setSelectedMovie] = useState(null);
+
+  return (
+    <MovieContext.Provider value={{ selectedMovie, setSelectedMovie }}>
+      {children}
+    </MovieContext.Provider>
+  );
+};
 
 const SearchBar = ({ onExpandChange }) => {
   const [movies, setMovies] = useState([]);
@@ -8,6 +21,7 @@ const SearchBar = ({ onExpandChange }) => {
   const [filteredMovies, setFilteredMovies] = useState([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate(); // React Router navigation
+  const { setSelectedMovie } = useContext(MovieContext); // Access the movie context
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -32,8 +46,8 @@ const SearchBar = ({ onExpandChange }) => {
 
     const filtered = movies
       .filter((movie) =>
-        (movie.title?.toLowerCase().includes(query) ||
-          movie.name?.toLowerCase().includes(query))
+        movie.title?.toLowerCase().includes(query) ||
+        movie.name?.toLowerCase().includes(query)
       )
       .slice(0, 5);
 
@@ -52,8 +66,10 @@ const SearchBar = ({ onExpandChange }) => {
   };
 
   const handleMovieClick = (movie) => {
-    navigate(`/movie-form`, { state: { movie } }); // Navigate to movie form with details
+    setSelectedMovie(movie);
+    navigate('/movie-form', { state: { movie } }); 
   };
+  
 
   return (
     <div className="relative w-full max-w-3xl mx-auto">

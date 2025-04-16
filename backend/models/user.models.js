@@ -10,24 +10,34 @@ const userSchema = new mongoose.Schema({
         unique:true,
         lowercase: true,
     },
-    email:{
-        type: String,
-        trim:true,
-        required: true,
-        // required:[true , "Uppercase letters (A-Z),Lowercase letters (a-z),Numbers (0-9),Special characters: dot (.), hyphen (-), underscore (_), percent (%), plus sign (+),This part matches the local part of the email address (before the @ symbol)"],
-        // match:'[A-Za-z0-9\._%+\-]+@[A-Za-z0-9\.\-]+\.[A-Za-z]{2,}'
+    email: {
+      type: String,
+      trim: true,
+      required: true,
+      unique: true,
+      index: true,
+      match: /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/,
     },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true // ✅ allows multiple null values with unique index
+    },
+    
+    
     // fullName:{
     //     type: String,
     //     required: [true,"fullname is required"],
     //     trim:true,
     // },
-    password:{
-        type:String,
-        required: true,
-        // required:[true,"Minimum length of 8 characters, At least one digit,At least one lowercase letter ,At least one uppercase letter,At least one letter (either uppercase or lowercase)"],
-        // match:'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$'
+    password: {
+      type: String,  
+      match: /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/,
+      required: function() { // Only require password for regular users, not Google login users
+        return this.googleId ? false : true;
+      },
     },
+    
     // phoneNumber:{
     //     type:String,
     //     required: true,
@@ -40,16 +50,18 @@ const userSchema = new mongoose.Schema({
     //     default: "Buyer"
     // },
     refreshToken: {
-        type: String,
-    }
+      type: String,
+      default: null,
+    },
+    
 },{timestamps:true}) 
 
 
 userSchema.pre("save",async function (next) {
     if(this.isModified("password")){
         this.password= await bcrypt.hash(this.password,10)
-        next()
-    }
+      }
+      next()
 })
 
 userSchema.methods.ispasswordcorrect = async function(password){

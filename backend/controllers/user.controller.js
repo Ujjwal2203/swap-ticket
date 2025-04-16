@@ -3,6 +3,13 @@ import { apiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.models.js";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from 'google-auth-library';
+import Imap from 'imap';
+import simpleParser from 'simple-parser';  // Import using default export
+
+
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Generate Refresh & Access Tokens
 const generateTokens = async (userId) => {
@@ -72,6 +79,35 @@ const loginUser = asyncHandler(async (req, res) => {
     .json(new apiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "User logged in successfully."));
 });
 
+// Google Login
+const googleOneTapLogin = async (req, res) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    return res.status(400).json({ message: 'No credential received.' });
+  }
+
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    return res.status(500).json({ message: 'Server misconfiguration: Missing Google Client ID' });
+  }
+
+  try {
+    const { credential } = req.body;
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    console.log("Google user:", payload);
+
+    res.status(200).json({ message: "Google login successful!", user: payload });
+  } catch (err) {
+    console.error("Google login failed:", err);
+    res.status(403).json({ message: "Invalid token or origin." });
+  }
+};
+
 // Logout User
 const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(req.user._id, { refreshToken: undefined }, { new: true });
@@ -85,38 +121,70 @@ const logoutUser = asyncHandler(async (req, res) => {
 });
 
 // Refresh Access Token
-const refreshAccessToken = asyncHandler(async(req,res)=>{
+const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
   if (!incomingRefreshToken) {
-    throw new apiError(401, "Unauthorized request.");
+    throw new apiError(401, "Unauthorized request. Refresh token is missing.");
   }
 
   try {
+    // Verify the refresh token
     const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+    // Fetch user from the database
     const user = await User.findById(decodedToken?._id);
-  
-    if (!user || incomingRefreshToken !== user?.refreshToken) {
+    
+    if (!user) {
+      throw new apiError(401, "User not found.");
+    }
+
+    // Validate that the incoming refresh token matches the stored refresh token
+    if (incomingRefreshToken !== user?.refreshToken) {
       throw new apiError(401, "Invalid or expired refresh token.");
     }
-  
-    // Generate new access token and refresh token  
+
+    // Generate new access and refresh tokens
     const { accessToken, refreshToken: newRefreshToken } = await generateTokens(user._id);
-    
+
+    // Set new tokens in cookies (make sure secure and sameSite are properly set for production)
     return res.status(200)
-      .cookie("refreshToken", newRefreshToken, { httpOnly: true, secure: true, sameSite: "None" })
-      .cookie("accessToken", accessToken, { httpOnly: true, secure: true, sameSite: "None" })
+      .cookie("refreshToken", newRefreshToken, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === "production",  // Secure only in production
+        sameSite: "None",  // Allows cross-site cookie use
+        maxAge: 24 * 60 * 60 * 1000  // Set expiry to 1 day
+      })
+      .cookie("accessToken", accessToken, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === "production", 
+        sameSite: "None", 
+        maxAge: 24 * 60 * 60 * 1000  // Set expiry to 1 day
+      })
       .json(new apiResponse(200, { accessToken, refreshToken: newRefreshToken }, "Access token refreshed successfully."));
-      
+    
   } catch (error) {
+    console.error("❌ Error refreshing access token:", error.message);
     throw new apiError(401, "Access token refresh failed.");
   }
 });
 
 
+
 // Check User Session (Persistent Login)
 const checkUserSession = asyncHandler(async (req, res) => {
-  const incomingRefreshToken = req.cookies.refreshToken;
+  // ✅ Check if session-based login (Google OAuth)
+  if (req.user) {
+    return res.status(200).json(new apiResponse(200, {
+      user: {
+        userName: req.user.userName,
+        email: req.user.email
+      }
+    }, "User is logged in (session)"));
+  }
 
+  // 🔁 Fallback: JWT-based session check
+  const incomingRefreshToken = req.cookies.refreshToken;
   if (!incomingRefreshToken) {
     return res.status(401).json(new apiResponse(401, {}, "User not logged in."));
   }
@@ -130,7 +198,12 @@ const checkUserSession = asyncHandler(async (req, res) => {
     }
 
     const accessToken = user.generateaccesstoken();
-    const cookieOptions = { httpOnly: true, secure: true, sameSite: "Strict" };
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",  // true in prod, false in dev
+      sameSite: process.env.NODE_ENV === "production" ? "Strict" : "Lax"
+    };
+    
 
     return res.status(200)
       .cookie("accessToken", accessToken, cookieOptions)
@@ -156,4 +229,75 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   return res.status(200).json(new apiResponse(200, {}, "Password changed successfully."));
 });
 
-export { registeredUser, loginUser, logoutUser, refreshAccessToken, checkUserSession, changeCurrentPassword };
+const verifyTicketForwarded = asyncHandler(async (req, res) => {
+  console.log("🔍 Reached verifyTicketForwarded with user:", req.user);
+  const { email } = req.body;
+
+  if (!email) {
+    throw new apiError(400, "Email is required.");
+  }
+
+  const imapConfig = {
+    user: process.env.EMAIL_USERNAME,
+    password: process.env.EMAIL_APP_PASSWORD,
+    host: 'imap.gmail.com',
+    port: 993,
+    tls: true,
+    tlsOptions: { rejectUnauthorized: false },
+  };
+
+  const emailFound = await new Promise((resolve, reject) => {
+    const imap = new Imap(imapConfig);
+
+    imap.once('ready', () => {
+      imap.openBox('INBOX', true, (err, box) => {
+        if (err) return reject(err);
+
+        // Search for emails TO 'Swaptickets001@gmail.com' and FROM the provided email
+        const searchCriteria = [
+          ['TO', 'Swaptickets001@gmail.com'],
+          ['FROM', email],  // Match the user-provided email in FROM
+        ];
+
+        imap.search(searchCriteria, (err, results) => {
+          if (err) return reject(err);
+          if (!results.length) return resolve(false); // No emails found
+
+          const fetch = imap.fetch(results, { bodies: '' }); // Fetch the full body
+          let found = false;
+
+          fetch.on('message', (msg) => {
+            msg.on('body', (stream) => {
+              simpleParser(stream, (err, parsed) => {
+                if (err) return reject(err);
+                // Check if the email contains a specific keyword in the body
+                if (parsed.text && parsed.text.includes('Ticket Verification')) {
+                  found = true;
+                }
+              });
+            });
+          });
+
+          fetch.once('end', () => {
+            imap.end();
+            resolve(found);
+          });
+        });
+      });
+    });
+
+    imap.once('error', (err) => {
+      reject(err);
+    });
+
+    imap.connect();
+  });
+
+  if (emailFound) {
+    return res.status(200).json(new apiResponse(200, {}, "✅ Ticket forwarded successfully."));
+  } else {
+    return res.status(404).json(new apiResponse(404, {}, "❌ No valid ticket found in forwarded emails."));
+  }
+});
+
+export { registeredUser, loginUser, logoutUser, refreshAccessToken, checkUserSession, changeCurrentPassword , googleOneTapLogin ,verifyTicketForwarded};

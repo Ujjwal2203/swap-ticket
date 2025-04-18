@@ -11,6 +11,7 @@ import { AuthContext } from "./pages/context";
 import MovieForm from "./components/Movieform.jsx";
 import MyListings from "./pages/Mylistings.jsx";
 import ThankYou from "./pages/Thankyou.jsx";
+import ManageEvent from "./pages/ManageEvent.jsx";
 
 // PrivateRoute component for handling authentication
 const PrivateRoute = ({ children }) => {
@@ -34,6 +35,15 @@ export default function App() {
             element={
               <PrivateRoute>
                 <MyListings />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/manage-event"
+            element={
+              <PrivateRoute>
+                <ManageEvent />
               </PrivateRoute>
             }
           />
@@ -86,7 +96,7 @@ export default function App() {
           path="/auth/google/callback"
           element={<GoogleRedirectHandler />} // Handle OAuth callback here
         /> */}
-      <Route path="/thank-you" element={<ThankYou />  } />
+        <Route path="/thank-you" element={<ThankYou />} />
       </Routes>
     </BrowserRouter>
   );

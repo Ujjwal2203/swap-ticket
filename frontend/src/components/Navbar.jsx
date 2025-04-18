@@ -92,7 +92,7 @@ function StickyNavbar() {
                   <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-300 rounded-lg shadow-xl z-10 animate-fadeIn">
                     <ul>
                       <li className="px-6 py-3 text-lg font-bold text-gray-700 hover:bg-gray-100 cursor-pointer">
-                        <Link to="/manage-events">Manage Events</Link>
+                        <Link to="/manage-event">Manage Events</Link>
                       </li>
                       <li className="px-6 py-3 text-lg font-bold text-gray-700 hover:bg-gray-100 cursor-pointer">
                         <Link to="/my-listings">My Listings</Link>

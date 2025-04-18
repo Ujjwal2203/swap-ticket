@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
-import router from "./routes/user.route.js";
+// import router from "./routes/user.route.js";
+import authRouter from "./routes/user.route.js";
 import ticketrouter from "./routes/ticket.route.js";
 import razorpayRoutes from "./routes/razorpay.route.js";
 import dotenv from "dotenv";
@@ -49,7 +50,7 @@ app.use((req, res, next) => {
 
 
 // Routes
-app.use('/auth', router);
+app.use('/auth', authRouter);
 app.use("/ticket", ticketrouter);
 app.use('/api/razorpay', razorpayRoutes);
 

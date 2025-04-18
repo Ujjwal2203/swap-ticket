@@ -65,7 +65,6 @@ const ResellTickets = () => {
           >
             {currentStep === 3 ? "Next" : "Next"}
           </button>
-
         </div>
       </div>
     </div>
@@ -278,26 +277,28 @@ const Step2 = ({ selectedMovie }) => {
 const Step3 = () => {
   const [verificationStatus, setVerificationStatus] = useState("");
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleVerifyEmail = async () => {
-    // console.log(email)
     if (!email) {
       setVerificationStatus("Please enter a valid email address.");
       return;
     }
-
+    setLoading(true);
     try {
-      // Send a request to the backend to verify the forwarded ticket
       const response = await axios.post(
         "http://localhost:8000/auth/verify-ticket",
         { email },
-        { withCredentials: true } // 🔥 THIS LINE is the fix
+        { withCredentials: true }
       );
       setVerificationStatus(response.data.message);
     } catch (error) {
       setVerificationStatus(
-        "Error verifying the ticket. Please try again later."
+        error.response?.data?.message ||
+          "Error verifying the ticket. Please try again later."
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -339,13 +340,22 @@ const Step3 = () => {
           onChange={(e) => setEmail(e.target.value)}
         />
         <button
-          className="bg-pink-600 text-white p-3 rounded-lg"
+          disabled={loading}
+          className={`bg-pink-600 text-white p-3 rounded-lg ${
+            loading ? "opacity-50 cursor-not-allowed" : "hover:bg-pink-700"
+          }`}
           onClick={handleVerifyEmail}
         >
-          Verify Forwarded Ticket
+          {loading ? "Verifying..." : "Verify Forwarded Ticket"}
         </button>
         {verificationStatus && (
-          <div className="mt-4 text-center text-lg">
+          <div
+            className={`mt-4 text-center text-lg font-semibold ${
+              verificationStatus.includes("✅")
+                ? "text-green-600"
+                : "text-red-500"
+            }`}
+          >
             <p>{verificationStatus}</p>
           </div>
         )}
@@ -422,7 +432,9 @@ const Step4 = () => {
             <p className="text-lg font-semibold">
               🎬 {selectedMovie.title || selectedMovie.name}
             </p>
-            <p>📅 {selectedMovie.release_date || selectedMovie.first_air_date}</p>
+            <p>
+              📅 {selectedMovie.release_date || selectedMovie.first_air_date}
+            </p>
             <p>⭐ {selectedMovie.vote_average?.toFixed(1) || "N/A"}</p>
           </div>
         </div>
@@ -453,7 +465,5 @@ const Step4 = () => {
     </div>
   );
 };
-
-
 
 export default ResellTickets;

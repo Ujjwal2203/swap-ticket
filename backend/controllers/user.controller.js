@@ -5,8 +5,8 @@ import { User } from "../models/user.models.js";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from 'google-auth-library';
 import Imap from 'imap';
-import simpleParser from 'simple-parser';  // Import using default export
-
+import { simpleParser } from 'mailparser';
+// import imaps from 'imap-simple';
 
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -19,7 +19,7 @@ const generateTokens = async (userId) => {
     const refreshToken = user.generaterefreshtoken();
 
     user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+    await user.save({ validateBeforeSave: false }); 
 
     return { accessToken, refreshToken };
   } catch (error) {
@@ -49,7 +49,7 @@ const registeredUser = asyncHandler(async (req, res) => {
 
   return res.status(201).json(new apiResponse(201, createdUser, "User successfully registered."));
 });
-
+ 
 // Login User
 const loginUser = asyncHandler(async (req, res) => {
   const { userName, email, password } = req.body;
@@ -230,7 +230,6 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const verifyTicketForwarded = asyncHandler(async (req, res) => {
-  console.log("🔍 Reached verifyTicketForwarded with user:", req.user);
   const { email } = req.body;
 
   if (!email) {
@@ -239,65 +238,105 @@ const verifyTicketForwarded = asyncHandler(async (req, res) => {
 
   const imapConfig = {
     user: process.env.EMAIL_USERNAME,
-    password: process.env.EMAIL_APP_PASSWORD,
-    host: 'imap.gmail.com',
+    password: process.env.EMAIL_APP_PASSWORD, // Use Gmail App Password here
+    host: "imap.gmail.com",
     port: 993,
     tls: true,
     tlsOptions: { rejectUnauthorized: false },
   };
 
-  const emailFound = await new Promise((resolve, reject) => {
-    const imap = new Imap(imapConfig);
+  try {
+    const emailFound = await new Promise((resolve, reject) => {
+      const imap = new Imap(imapConfig);
 
-    imap.once('ready', () => {
-      imap.openBox('INBOX', true, (err, box) => {
-        if (err) return reject(err);
-
-        // Search for emails TO 'Swaptickets001@gmail.com' and FROM the provided email
-        const searchCriteria = [
-          ['TO', 'Swaptickets001@gmail.com'],
-          ['FROM', email],  // Match the user-provided email in FROM
-        ];
-
-        imap.search(searchCriteria, (err, results) => {
-          if (err) return reject(err);
-          if (!results.length) return resolve(false); // No emails found
-
-          const fetch = imap.fetch(results, { bodies: '' }); // Fetch the full body
-          let found = false;
-
-          fetch.on('message', (msg) => {
-            msg.on('body', (stream) => {
-              simpleParser(stream, (err, parsed) => {
-                if (err) return reject(err);
-                // Check if the email contains a specific keyword in the body
-                if (parsed.text && parsed.text.includes('Ticket Verification')) {
-                  found = true;
-                }
-              });
-            });
-          });
-
-          fetch.once('end', () => {
+      imap.once("ready", () => {
+        imap.openBox("INBOX", true, (err, box) => {
+          if (err) {
             imap.end();
-            resolve(found);
+            return reject(new apiError(500, "Error opening inbox."));
+          }
+
+          const searchCriteria = ["ALL"];
+          const fetchOptions = { bodies: "", struct: true };
+
+          imap.search(searchCriteria, (err, results) => {
+            if (err) {
+              imap.end();
+              return reject(new apiError(500, "Error searching emails."));
+            }
+
+            if (!results.length) {
+              imap.end();
+              return resolve(false); // No emails found
+            }
+
+            const fetch = imap.fetch(results, fetchOptions);
+            const parsePromises = [];
+
+            fetch.on("message", (msg) => {
+              parsePromises.push(
+                new Promise((resolve) => {
+                  msg.on("body", (stream) => {
+                    simpleParser(stream, (err, parsed) => {
+                      if (err) return resolve(false);
+
+                      const isToAppEmail = parsed.to?.value.some(
+                        (recipient) => recipient.address === "swaptickets001@gmail.com"
+                      );
+                      const isFromUserEmail = parsed.from?.value.some(
+                        (sender) => sender.address === email
+                      );
+
+                      const keywords = ["ticket", "confirmation", "booking"];
+                      const body = parsed.text || parsed.html || "";
+
+                      const containsKeyword = keywords.some((keyword) =>
+                        body.toLowerCase().includes(keyword.toLowerCase())
+                      );
+
+                      console.log("From:", parsed.from?.text);
+                      console.log("To:", parsed.to?.text);
+                      console.log("Subject:", parsed.subject);
+                      console.log("Body:", body.slice(0, 200)); // Print first 200 chars
+
+                      resolve(isToAppEmail && isFromUserEmail && containsKeyword);
+                    });
+                  });
+                })
+              );
+            });
+
+            fetch.once("end", async () => {
+              const matches = await Promise.all(parsePromises);
+              const found = matches.includes(true);
+              imap.end();
+              resolve(found);
+            });
           });
         });
       });
+
+      imap.once("error", (err) => {
+        reject(new apiError(500, `IMAP connection error: ${err.message}`));
+      });
+
+      imap.once("end", () => {
+        console.log("📨 IMAP connection closed.");
+      });
+
+      imap.connect();
     });
 
-    imap.once('error', (err) => {
-      reject(err);
-    });
-
-    imap.connect();
-  });
-
-  if (emailFound) {
-    return res.status(200).json(new apiResponse(200, {}, "✅ Ticket forwarded successfully."));
-  } else {
-    return res.status(404).json(new apiResponse(404, {}, "❌ No valid ticket found in forwarded emails."));
+    if (emailFound) {
+      return res.status(200).json(new apiResponse(200, {}, "✅ Ticket forwarded successfully."));
+    } else {
+      return res.status(404).json(new apiResponse(404, {}, "❌ No valid ticket found in forwarded emails."));
+    }
+  } catch (error) {
+    console.error("Error verifying ticket:", error);
+    throw new apiError(500, "Error verifying the ticket. Please try again later.");
   }
 });
+
 
 export { registeredUser, loginUser, logoutUser, refreshAccessToken, checkUserSession, changeCurrentPassword , googleOneTapLogin ,verifyTicketForwarded};

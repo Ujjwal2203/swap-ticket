@@ -32,7 +32,7 @@ router.get("/session", checkUserSession);
 router.post("/refresh-token", refreshAccessToken);
 
 // Verify forwarded ticket
-router.post("/verify-ticket", verifyJWT, verifyTicketForwarded);
+router.post("/verify-ticket",  verifyTicketForwarded);
 
 // Razorpay payment route
 router.use("/payment", razorpayRoutes);

@@ -12,6 +12,7 @@ import MovieForm from "./components/Movieform.jsx";
 import MyListings from "./pages/Mylistings.jsx";
 import ThankYou from "./pages/Thankyou.jsx";
 import ManageEvent from "./pages/ManageEvent.jsx";
+import MyBookings from "./pages/Mybooking.jsx";
 
 // PrivateRoute component for handling authentication
 const PrivateRoute = ({ children }) => {
@@ -47,6 +48,16 @@ export default function App() {
               </PrivateRoute>
             }
           />
+
+          <Route
+            path="/my-bookings"
+            element={
+              <PrivateRoute>
+                <MyBookings />
+              </PrivateRoute>
+            }
+          />
+
           {/* Private routes */}
           <Route
             path="/resell-tickets"

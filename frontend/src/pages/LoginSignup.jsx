@@ -33,7 +33,7 @@ const LoginSignup = () => {
         <div className="mt-6 text-center">
           <button
             className="bg-gray-300 text-indigo-700 font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-600 hover:text-white transition duration-300"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/home")}
           >
             ⬅ Back to Home
           </button>
@@ -47,7 +47,7 @@ const LoginSignup = () => {
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { setIsLogin } = useContext(AuthContext);
+  const { setIsLogin,refreshSession } = useContext(AuthContext);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -63,9 +63,16 @@ const Login = () => {
         { email, password },
         { withCredentials: true }
       )
-      .then(() => {
+      .then((res) => {
         toast.success("Login successful!");
         setIsLogin(true);
+        if (res.data.token) {
+          localStorage.setItem("authToken", res.data.token); // ✅ Store token
+          // localStorage.setItem("profilePic", data.user.profilePic)
+          toast.success("Login successful!");
+        } else {
+          toast.error("Login failed: No token received.");
+        }
       })
       .catch((err) => {
         console.error(err);
@@ -76,17 +83,29 @@ const Login = () => {
   const handleGoogleLogin = (credentialResponse) => {
     axios
       .post("http://localhost:8000/auth/google/onetap", {
-        credential: credentialResponse.credential, // The token from Google One Tap
+        credential: credentialResponse.credential, // ✅ Send Google credential
       })
       .then((res) => {
-        toast.success("Google Login successful!");
-        setIsLogin(true); // Update the auth context
+        console.log("🔍 Google Login Response:", res.data); // ✅ Debugging
+  
+        if (res.data.token) {
+          localStorage.setItem("authToken", res.data.token); // ✅ Store token
+          localStorage.setItem("profilePic", res.data.user.profilePic || "")
+          console.log("🛠️ Stored Profile Pic in LocalStorage:", localStorage.getItem("profilePic")); // 🔥 Debug log
+          toast.success("Login successful!");
+          // setIsLogin(true);
+           if (refreshSession) refreshSession();
+        } else {
+          console.error("❌ No token received from backend.");
+          toast.error("Login failed: No token received.");
+        }
       })
       .catch((err) => {
-        console.error("Google login failed", err);
+        console.error("❌ Google login failed:", err);
         toast.error("Google login failed.");
       });
   };
+  
 
   return (
     <form onSubmit={handleSubmit}>

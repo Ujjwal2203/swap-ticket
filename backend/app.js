@@ -7,6 +7,7 @@ import razorpayRoutes from "./routes/razorpay.route.js";
 import dotenv from "dotenv";
 import expressSession from 'express-session'; // Import express-session
 import cookieParser from 'cookie-parser';
+import eventRoutes from "./routes/event.route.js"; // ⬅️ add this
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 const app = express();
@@ -21,19 +22,19 @@ console.log(process.env.CORS_ORIGIN); // Optional logging, be cautious about sen
 app.use(cors({
   origin: 'http://localhost:5173', // Frontend URL
   credentials: true,  // Allow credentials (cookies)
-  methods: ['GET', 'POST']
-  // allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST' , 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Session management setup for Passport
 app.use(expressSession({
-  secret: process.env.SESSION_SECRET || 'fallback-secret',  // Use fallback in dev
+  secret: process.env.SESSION_SECRET || 'fallback-secret', 
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',  // Secure only in production
+    secure:false,  
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'Lax',
     maxAge: 1000 * 60 * 60 * 24,
   },
 }));
@@ -43,8 +44,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "16kb" }));
 
 app.use((req, res, next) => {
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+  res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
   next();
 });
 
@@ -53,6 +54,7 @@ app.use((req, res, next) => {
 app.use('/auth', authRouter);
 app.use("/ticket", ticketrouter);
 app.use('/api/razorpay', razorpayRoutes);
+app.use("/event", eventRoutes);   
 
 // Server setup
 export default app;

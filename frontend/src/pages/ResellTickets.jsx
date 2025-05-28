@@ -8,6 +8,8 @@ import { ToastContainer, toast } from "react-toastify"; // Toast Import
 import "react-toastify/dist/ReactToastify.css";
 import { MyListingsContext } from "../MyListingsContext";
 import { useNavigate } from "react-router-dom";
+// import { useAuth } from "./context";
+
 
 const ResellTickets = () => {
   const { selectedMovie, setSelectedMovie } = useContext(MovieContext);
@@ -54,17 +56,19 @@ const ResellTickets = () => {
           >
             Back
           </button>
-          <button
-            onClick={nextStep}
-            className={`px-6 py-3 rounded-full text-lg font-semibold transition ${
-              selectedMovie || currentStep >= 2
-                ? "bg-pink-500 text-white hover:bg-pink-600 hover:scale-105"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
-            disabled={!selectedMovie && currentStep < 2}
-          >
-            {currentStep === 3 ? "Next" : "Next"}
-          </button>
+          {currentStep !== 4 && (
+            <button
+              onClick={nextStep}
+              className={`px-6 py-3 rounded-full text-lg font-semibold transition ${
+                selectedMovie || currentStep >= 2
+                  ? "bg-pink-500 text-white hover:bg-pink-600 hover:scale-105"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+              disabled={!selectedMovie && currentStep < 2}
+            >
+              {currentStep === 3 ? "Next" : "Next"}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -280,18 +284,21 @@ const Step3 = () => {
   const [loading, setLoading] = useState(false);
 
   const handleVerifyEmail = async () => {
-    if (!email) {
+    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)){
       setVerificationStatus("Please enter a valid email address.");
       return;
     }
     setLoading(true);
     try {
+      console.log("Verifying email:", email); 
       const response = await axios.post(
         "http://localhost:8000/auth/verify-ticket",
         { email },
         { withCredentials: true }
       );
+      console.log("Response:", response.data)
       setVerificationStatus(response.data.message);
+      console.log(response.data);
     } catch (error) {
       setVerificationStatus(
         error.response?.data?.message ||
@@ -403,17 +410,75 @@ const Step4 = () => {
   const { addListing } = useContext(MyListingsContext);
   const [price, setPrice] = useState("");
   const navigate = useNavigate();
+  // const { user } = useAuth();
 
-  const handleSubmit = () => {
+  // const handleSubmit = () => {
+  //   if (!price || isNaN(price) || Number(price) <= 0) {
+  //     toast.error("Please enter a valid price");
+  //     return;
+  //   }
+
+  //   addListing({ movie: selectedMovie, price: parseFloat(price) });
+  //   toast.success("Ticket listed successfully!");
+  //   navigate("/my-listings");
+  // };
+
+  const handleListTicket = async () => {
     if (!price || isNaN(price) || Number(price) <= 0) {
       toast.error("Please enter a valid price");
       return;
     }
+  
+    if (!selectedMovie?.id) {
+      toast.error("Invalid movie selection. Please try again.");
+      return;
+    }
+    console.log("🎬 Selected Movie Before Listing:", selectedMovie); // ✅ Debugging
 
-    addListing({ movie: selectedMovie, price: parseFloat(price) });
-    toast.success("Ticket listed successfully!");
-    navigate("/my-listings");
+    const token = localStorage.getItem("authToken"); // 🔑 Get token from local storage
+  
+    if (!token) {
+      toast.error("Session expired. Please log in again.");
+      navigate("/login");
+      return;
+    } 
+  
+    console.log("🔑 Token before listing ticket:", token); // ✅ Debugging
+  
+    try {
+      const response = await axios.post(
+        "http://localhost:8000/ticket/resell/list",
+        {
+          movieId: selectedMovie.id,
+          movieTitle: selectedMovie.title || selectedMovie.name,
+          price,
+          status: "listed",
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }, // ✅ Attach token properly
+          withCredentials: true,
+        }
+      );
+  
+      console.log("✅ Ticket listed:", response.data);
+      addListing(response.data.ticket);
+      toast.success("Ticket listed successfully!");
+      navigate("/my-listings");
+    } catch (err) {
+      console.error("❌ Error listing ticket:", err);
+  
+      if (err.response?.status === 401) {
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("authToken"); // 🔥 Clear invalid token
+        navigate("/login");
+      } else {
+        toast.error("Failed to list ticket. Please try again.");
+      }
+    }
   };
+  
+  
+  
 
   return (
     <div className="animate-fadeIn bg-white p-8 rounded-2xl shadow-md space-y-6">
@@ -457,7 +522,7 @@ const Step4 = () => {
       <div className="text-center">
         <button
           className="bg-pink-600 text-white px-6 py-3 rounded-full text-lg font-semibold hover:bg-pink-700 transition-all"
-          onClick={handleSubmit}
+          onClick={handleListTicket}
         >
           List My Ticket
         </button>

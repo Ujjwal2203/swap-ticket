@@ -72,6 +72,8 @@ const loginUser = asyncHandler(async (req, res) => {
   const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
   const cookieOptions = { httpOnly: true, secure: true, sameSite: "Strict" };
+  
+  console.log("Setting Cookies: accessToken =", accessToken, "refreshToken =", refreshToken);
 
   return res.status(200)
     .cookie("accessToken", accessToken, cookieOptions)
@@ -80,19 +82,64 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // Google Login
+
+// const googleOneTapLogin = async (req, res) => {
+//   const { credential } = req.body;
+
+//   if (!credential) {
+//     return res.status(400).json({ message: "No credential received." });
+//   }
+
+//   if (!process.env.GOOGLE_CLIENT_ID) {
+//     return res.status(500).json({ message: "Server misconfiguration: Missing Google Client ID" });
+//   }
+
+//   try {
+//     const ticket = await client.verifyIdToken({
+//       idToken: credential,
+//       audience: process.env.GOOGLE_CLIENT_ID,
+//     });
+
+//     const payload = ticket.getPayload();
+//     console.log("Google user:", payload);
+
+//     const { email, name, picture, sub } = payload;
+
+//     // 🔹 Find or create user in DB
+//     let user = await User.findOne({ email });
+//     if (!user) {
+//       user = await User.create({ email, name, picture, googleId: sub });
+//     }
+
+//     // 🔥 Generate JWT token for authentication
+//     const token = jwt.sign(
+//       { _id: user._id },
+//       process.env.ACCESS_TOKEN_SECRET,
+//       { expiresIn: "1h" } // Token valid for 1 hour
+//     );
+
+//     console.log("✅ Generated Token:", token);
+
+//     // Send token + user info to frontend
+//     res.status(200).json({ message: "Google login successful!", user, token });
+//   } catch (err) {
+//     console.error("❌ Google login failed:", err);
+//     res.status(403).json({ message: "Invalid token or origin." });
+//   }
+// };
+
 const googleOneTapLogin = async (req, res) => {
   const { credential } = req.body;
 
   if (!credential) {
-    return res.status(400).json({ message: 'No credential received.' });
+    return res.status(400).json({ message: "No credential received." });
   }
 
   if (!process.env.GOOGLE_CLIENT_ID) {
-    return res.status(500).json({ message: 'Server misconfiguration: Missing Google Client ID' });
+    return res.status(500).json({ message: "Missing Google Client ID" });
   }
 
   try {
-    const { credential } = req.body;
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -101,12 +148,57 @@ const googleOneTapLogin = async (req, res) => {
     const payload = ticket.getPayload();
     console.log("Google user:", payload);
 
-    res.status(200).json({ message: "Google login successful!", user: payload });
+    const { email, name, picture, sub } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      let userName = name?.trim() || email.split("@")[0];
+
+      // Ensure unique username
+      let existingUserName = await User.findOne({ userName });
+      let counter = 1;
+      while (existingUserName) {
+        userName = `${userName}${counter}`;
+        existingUserName = await User.findOne({ userName });
+        counter++;
+      }
+
+      user = await User.create({
+        email,
+        userName,
+        profilePic: picture,
+        googleId: sub,
+      });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { _id: user._id },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    // ✅ Set token in cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Lax",
+      maxAge: 60 * 60 * 1000, // 1 hour
+    });
+
+    res.status(200).json({
+      message: "Google login successful!",
+      user,
+      token,
+    });
+
   } catch (err) {
-    console.error("Google login failed:", err);
+    console.error("❌ Google login failed:", err);
     res.status(403).json({ message: "Invalid token or origin." });
   }
 };
+
 
 // Logout User
 const logoutUser = asyncHandler(async (req, res) => {
@@ -172,46 +264,63 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 
 // Check User Session (Persistent Login)
-const checkUserSession = asyncHandler(async (req, res) => {
-  // ✅ Check if session-based login (Google OAuth)
-  if (req.user) {
-    return res.status(200).json(new apiResponse(200, {
-      user: {
-        userName: req.user.userName,
-        email: req.user.email
-      }
-    }, "User is logged in (session)"));
-  }
+// const checkUserSession = asyncHandler(async (req, res) => {
+//   const token = req.cookies?.token;
 
-  // 🔁 Fallback: JWT-based session check
-  const incomingRefreshToken = req.cookies.refreshToken;
-  if (!incomingRefreshToken) {
-    return res.status(401).json(new apiResponse(401, {}, "User not logged in."));
+//   if (!token) {
+//     return res.status(401).json(new apiResponse(401, {}, "No token provided."));
+//   }
+
+//   try {
+//     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+//     const user = await User.findById(decoded._id).select("-password");
+
+//     if (!user) {
+//       return res.status(401).json(new apiResponse(401, {}, "User not found."));
+//     }
+
+//     return res.status(200).json(new apiResponse(200, {
+//       user: {
+//         userName: user.userName,
+//         email: user.email,
+//         profilePic: user.profilePic
+//       }
+//     }, "User is logged in."));
+//   } catch (err) {
+//     console.error("❌ Token verification failed:", err);
+//     return res.status(401).json(new apiResponse(401, {}, "Invalid or expired token."));
+//   }
+// });
+
+const checkUserSession = asyncHandler(async (req, res) => {
+  // ✅ Check for token in both cookies & Authorization header
+  const token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json(new apiResponse(401, {}, "No token provided."));
   }
 
   try {
-    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
-    const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    const user = await User.findById(decoded._id).select("-password");
 
     if (!user) {
-      return res.status(401).json(new apiResponse(401, {}, "Invalid session."));
+      return res.status(401).json(new apiResponse(401, {}, "User not found."));
     }
 
-    const accessToken = user.generateaccesstoken();
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",  // true in prod, false in dev
-      sameSite: process.env.NODE_ENV === "production" ? "Strict" : "Lax"
-    };
-    
-
-    return res.status(200)
-      .cookie("accessToken", accessToken, cookieOptions)
-      .json(new apiResponse(200, { user, accessToken }, "User is logged in."));
-  } catch (error) {
-    return res.status(401).json(new apiResponse(401, {}, "Session expired."));
+    return res.status(200).json(new apiResponse(200, {
+      user: {
+        userName: user.userName,
+        email: user.email,
+        profilePic: user.profilePic
+      }
+    }, "User is logged in."));
+  } catch (err) {
+    console.error("❌ Token verification failed:", err);
+    return res.status(401).json(new apiResponse(401, {}, "Invalid or expired token."));
   }
 });
+ 
 
 // Change Current Password
 const changeCurrentPassword = asyncHandler(async (req, res) => {
@@ -229,6 +338,133 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   return res.status(200).json(new apiResponse(200, {}, "Password changed successfully."));
 });
 
+// const verifyTicketForwarded = asyncHandler(async (req, res) => {
+//   console.log("Incoming request:", req.method, req.originalUrl);
+//   const { email } = req.body;
+
+//   if (!email) {
+//     console.log("No email provided.");
+//     return res.status(400).json(new apiResponse(400, {}, "❌ Email is required."));
+//   }
+
+
+//   const imapConfig = {
+//     user: process.env.EMAIL_USERNAME,
+//     password: process.env.EMAIL_APP_PASSWORD, // Use Gmail App Password here
+//     host: "imap.gmail.com",
+//     port: 993,
+//     tls: true,
+//     tlsOptions: { rejectUnauthorized: false },
+//   };
+
+//   try {
+//     const emailFound = await new Promise((resolve, reject) => {
+//       const imap = new Imap(imapConfig);
+
+//       imap.once("ready", () => {
+//         imap.openBox("INBOX", true, (err, box) => {
+//           if (err) {
+//             imap.end();
+//             return reject(new apiError(500, "Error opening inbox."));
+//           }
+
+//           const searchCriteria = ["UNSEEN", ["SINCE", "20-Apr-2025"]]; 
+//           const fetchOptions = {
+//             bodies: ["HEADER", "TEXT"], // ⬅️ ensure headers are fetched
+//             struct: true,
+//           };
+
+
+//           imap.search(searchCriteria, (err, results) => {
+//             if (err) {
+//               imap.end();
+//               return reject(new apiError(500, "Error searching emails."));
+//             }
+
+//             if (!results.length) {
+//               imap.end();
+//               return resolve(false); // No emails found
+//             }
+
+//             const fetch = imap.fetch(results, fetchOptions);
+//             const parsePromises = [];
+
+//             fetch.on("message", (msg) => {
+//               parsePromises.push(
+//                 new Promise((resolve) => {
+//                   msg.on("body", (stream) => {
+//                     simpleParser(stream, (err, parsed) => {
+//                       if (err) {
+//                           console.log("❌ simpleParser error:", err);
+//                           return resolve(false);
+//                       }
+
+//                       const isToAppEmail = parsed.to?.value?.some(
+//                         (recipient) => recipient.address.toLowerCase() === "swaptickets001@gmail.com"
+//                       );
+//                       const isFromUserEmail = parsed.from?.value?.some(
+//                         (sender) => sender.address.toLowerCase() === email.toLowerCase()
+//                       );
+                      
+
+//                       const keywords = [
+//                         "ticket",
+//                         "confirmation",
+//                         "booking",
+//                         "Booking ID",
+//                         "Event",
+//                         "Seat No",
+//                       ];
+//                       const body = parsed.text || parsed.html || "";
+
+//                       const containsKeyword = keywords.some((keyword) =>
+//                         body.toLowerCase().includes(keyword.toLowerCase())
+//                       );
+
+//                       console.log("From:", parsed.from?.text);
+//                       console.log("To:", parsed.to?.text);
+//                       console.log("Subject:", parsed.subject);
+//                       console.log("Body:", body.slice(0, 200)); // Print first 200 chars
+
+//                       resolve(isToAppEmail && isFromUserEmail && containsKeyword);
+//                     });
+//                   });
+//                 })
+//               );
+//             });
+
+//             fetch.once("end", async () => {
+//               const matches = await Promise.all(parsePromises);
+//               const found = matches.includes(true);
+//               imap.end();
+//               resolve(found);
+//             });
+//           });
+//         });
+//       });
+
+//       imap.once("error", (err) => {
+//         reject(new apiError(500, `IMAP connection error: ${err.message}`));
+//       });
+
+//       imap.once("end", () => {
+//         console.log("📨 IMAP connection closed.");
+//       });
+
+//       imap.connect();
+//     });
+
+//     if (emailFound) {
+//       return res.status(200).json(new apiResponse(200, {}, "✅ Ticket forwarded successfully."));
+//     } else {
+//       return res.status(404).json(new apiResponse(404, {}, "❌ No valid ticket found in forwarded emails."));
+//     }
+//   } catch (error) {
+//     console.error("Error verifying ticket:", error);
+//     throw new apiError(500, "Error verifying the ticket. Please try again later.");
+//   }
+// });
+
 const verifyTicketForwarded = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -236,107 +472,58 @@ const verifyTicketForwarded = asyncHandler(async (req, res) => {
     throw new apiError(400, "Email is required.");
   }
 
-  const imapConfig = {
-    user: process.env.EMAIL_USERNAME,
-    password: process.env.EMAIL_APP_PASSWORD, // Use Gmail App Password here
-    host: "imap.gmail.com",
-    port: 993,
-    tls: true,
-    tlsOptions: { rejectUnauthorized: false },
-  };
-
-  try {
-    const emailFound = await new Promise((resolve, reject) => {
-      const imap = new Imap(imapConfig);
-
-      imap.once("ready", () => {
-        imap.openBox("INBOX", true, (err, box) => {
-          if (err) {
-            imap.end();
-            return reject(new apiError(500, "Error opening inbox."));
-          }
-
-          const searchCriteria = ["ALL"];
-          const fetchOptions = { bodies: "", struct: true };
-
-          imap.search(searchCriteria, (err, results) => {
-            if (err) {
-              imap.end();
-              return reject(new apiError(500, "Error searching emails."));
-            }
-
-            if (!results.length) {
-              imap.end();
-              return resolve(false); // No emails found
-            }
-
-            const fetch = imap.fetch(results, fetchOptions);
-            const parsePromises = [];
-
-            fetch.on("message", (msg) => {
-              parsePromises.push(
-                new Promise((resolve) => {
-                  msg.on("body", (stream) => {
-                    simpleParser(stream, (err, parsed) => {
-                      if (err) return resolve(false);
-
-                      const isToAppEmail = parsed.to?.value.some(
-                        (recipient) => recipient.address === "swaptickets001@gmail.com"
-                      );
-                      const isFromUserEmail = parsed.from?.value.some(
-                        (sender) => sender.address === email
-                      );
-
-                      const keywords = ["ticket", "confirmation", "booking"];
-                      const body = parsed.text || parsed.html || "";
-
-                      const containsKeyword = keywords.some((keyword) =>
-                        body.toLowerCase().includes(keyword.toLowerCase())
-                      );
-
-                      console.log("From:", parsed.from?.text);
-                      console.log("To:", parsed.to?.text);
-                      console.log("Subject:", parsed.subject);
-                      console.log("Body:", body.slice(0, 200)); // Print first 200 chars
-
-                      resolve(isToAppEmail && isFromUserEmail && containsKeyword);
-                    });
-                  });
-                })
-              );
-            });
-
-            fetch.once("end", async () => {
-              const matches = await Promise.all(parsePromises);
-              const found = matches.includes(true);
-              imap.end();
-              resolve(found);
-            });
-          });
-        });
-      });
-
-      imap.once("error", (err) => {
-        reject(new apiError(500, `IMAP connection error: ${err.message}`));
-      });
-
-      imap.once("end", () => {
-        console.log("📨 IMAP connection closed.");
-      });
-
-      imap.connect();
-    });
-
-    if (emailFound) {
-      return res.status(200).json(new apiResponse(200, {}, "✅ Ticket forwarded successfully."));
-    } else {
-      return res.status(404).json(new apiResponse(404, {}, "❌ No valid ticket found in forwarded emails."));
+  // Mocked email data simulating parsed email from Gmail
+  const mockedEmails = [
+    {
+      from: [{ address: "itsmeuj8766@gmail.com" }],
+      to: [{ address: "swaptickets001@gmail.com" }],
+      subject: "Ticket Forwarded",
+      text: "Here is your Booking ID: 12345\nSeat No: A1\nEvent: Avengers",
+    },
+    {
+      from: [{ address: "randomuser@example.com" }],
+      to: [{ address: "someoneelse@gmail.com" }],
+      subject: "Not Relevant",
+      text: "Some random message",
     }
-  } catch (error) {
-    console.error("Error verifying ticket:", error);
-    throw new apiError(500, "Error verifying the ticket. Please try again later.");
+  ];
+
+  const emailFound = mockedEmails.some(emailObj => {
+    const isToAppEmail = emailObj.to.some(
+      recipient => recipient.address.toLowerCase() === "swaptickets001@gmail.com"
+    );
+    const isFromUserEmail = emailObj.from.some(
+      sender => sender.address.toLowerCase() === email.toLowerCase()
+    );
+
+    const keywords = [
+      "ticket",
+      "confirmation",
+      "booking",
+      "Booking ID",
+      "Event",
+      "Seat No",
+    ];
+
+    const body = emailObj.text || "";
+    const containsKeyword = keywords.some(keyword =>
+      body.toLowerCase().includes(keyword.toLowerCase())
+    );
+
+    return isToAppEmail && isFromUserEmail && containsKeyword;
+  });
+
+  if (emailFound) {
+    return res
+      .status(200)
+      .json(new apiResponse(200, {}, "✅ Ticket forwarded successfully."));
+  } else {
+    return res
+      .status(404)
+      .json(new apiResponse(404, {}, "❌ No valid ticket found in forwarded emails."));
   }
 });
+
 
 
 export { registeredUser, loginUser, logoutUser, refreshAccessToken, checkUserSession, changeCurrentPassword , googleOneTapLogin ,verifyTicketForwarded};

@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken"
 const userSchema = new mongoose.Schema({
     userName:{
         type:String,
-        required: true,
+        // required: true,
         unique:true,
         lowercase: true,
     },
@@ -21,8 +21,8 @@ const userSchema = new mongoose.Schema({
     googleId: {
       type: String,
       unique: true,
-      sparse: true // ✅ allows multiple null values with unique index
-    },
+      required: true// ✅ allows multiple null values with unique index
+    },  
     
     
     // fullName:{
@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema({
         return this.googleId ? false : true;
       },
     },
+    profilePic: {
+       type: String,
+      default: "",
+},
     
     // phoneNumber:{
     //     type:String,
@@ -67,6 +71,13 @@ userSchema.pre("save",async function (next) {
 userSchema.methods.ispasswordcorrect = async function(password){
   return await bcrypt.compare(password, this.password) // bcrypt can also compare and return true or false
 } 
+
+userSchema.pre("save", function (next) {
+  if (!this.userName) {
+    this.userName = this.email.split("@")[0]; // ✅ Use the first part of email as username
+  }
+  next();
+});
 
 
 userSchema.methods.generateaccesstoken = function(){

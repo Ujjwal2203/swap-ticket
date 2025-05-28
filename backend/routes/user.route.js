@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import { jwtDecode } from 'jwt-decode';
 import {
   registeredUser,
   loginUser,
@@ -32,7 +33,10 @@ router.get("/session", checkUserSession);
 router.post("/refresh-token", refreshAccessToken);
 
 // Verify forwarded ticket
-router.post("/verify-ticket",  verifyTicketForwarded);
+router.post("/verify-ticket", (req, res, next) => {
+  console.log("✅ /verify-ticket hit");
+  next();
+}, verifyTicketForwarded);
 
 // Razorpay payment route
 router.use("/payment", razorpayRoutes);

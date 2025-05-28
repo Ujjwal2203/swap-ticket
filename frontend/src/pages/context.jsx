@@ -5,46 +5,68 @@ import { toast } from "react-hot-toast";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [isLogin, setIsLogin] = useState(
-    localStorage.getItem("isLogin") === "true"
-  );
-  const [userName, setUserName] = useState(
-    localStorage.getItem("userName") || ""
-  );
+  console.log("🔁 AuthProvider mounted");
+  const [isLogin, setIsLogin] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [profilePic, setProfilePic] = useState("");
+  const [userEmail, setUserEmail] = useState("");
 
-  // Helper to clear auth state
   const clearAuth = () => {
     setIsLogin(false);
     setUserName("");
-    localStorage.removeItem("isLogin");
-    localStorage.removeItem("userName");
+    setProfilePic("");
   };
 
-  const checkUserSession = async () => {
-    try {
-      const res = await axios.get("http://localhost:8000/auth/session", {
-        withCredentials: true,
-      });
-      // console.log("SESSION", re .session);
+ const checkUserSession = async () => {
+  try {
+    const token = localStorage.getItem("authToken");
 
-      if (res.data.status === 200) {
-        const name = res.data.data.user.userName;
-        setIsLogin(true);
-        setUserName(name);
-        localStorage.setItem("isLogin", "true");
-        localStorage.setItem("userName", name);
-      } else {
-        clearAuth();
-      }
-    } catch (error) {
+    if (!token) {
+      console.warn("⚠️ No auth token found, clearing session.");
       clearAuth();
-      toast.error("Session expired. Please log in again.");
-      // console.log("SESSION", req.session);
+      return;
     }
-  };
+
+    const res = await axios.get("http://localhost:8000/auth/session", {
+      headers: { Authorization: `Bearer ${token}` }, 
+      withCredentials: true,
+    });
+
+    console.log("✅ API Response:", res.data); // 🔥 Debug full response
+
+    // ✅ Extract the correct user object
+    const user = res.data.data?.user; 
+
+    if (user) {
+      console.log("🛠️ Extracted User Data:", user); // 🔥 Debug user object
+      setIsLogin(true);
+      setUserName(user.userName);
+      setProfilePic(user.profilePic || "");
+      setUserEmail(user.email);
+    } else {
+      console.warn("⚠️ No user data received. Clearing auth.");
+      clearAuth();
+    }
+  } catch (error) {
+    console.error("❌ Session API Error:", error);
+    clearAuth();
+    toast.error("Session expired. Please log in again.");
+  }
+};
 
   useEffect(() => {
-    checkUserSession();
+    const localPic = localStorage.getItem("profilePic");
+    const localName = localStorage.getItem("userName");
+    const localEmail = localStorage.getItem("userEmail");
+
+    if (localPic || localName) {
+      setIsLogin(true);
+      setProfilePic(localPic);
+      setUserName(localName);
+      setUserEmail(localEmail);
+    }
+
+    checkUserSession(); // Always try server-side validation too
   }, []);
 
   return (
@@ -54,6 +76,9 @@ export const AuthProvider = ({ children }) => {
         setIsLogin,
         userName,
         setUserName,
+        profilePic,
+        userEmail,
+        setProfilePic,
         refreshSession: checkUserSession,
         clearAuth,
       }}

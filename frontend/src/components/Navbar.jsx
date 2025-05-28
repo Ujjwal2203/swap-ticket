@@ -2,15 +2,25 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../pages/context";
 import { toast, Toaster } from "react-hot-toast";
+import {
+  FaCalendarCheck,
+  FaListAlt,
+  FaTicketAlt,
+  FaSignOutAlt,
+  FaChevronDown,
+  FaUserCircle,
+} from "react-icons/fa";
 
 function StickyNavbar() {
-  const { isLogin, userName, setIsLogin } = useContext(AuthContext);
+  const { isLogin, userName, profilePic, setIsLogin } = useContext(AuthContext);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [imageLoadError, setImageLoadError] = useState(false);
   const navigate = useNavigate();
-
-  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
-
+  const timeoutRef = useRef(null);
+  // console.log("🛠️ Profile Pic in Navbar:", profilePic);
+  const userProfileImage =
+    profilePic || localStorage.getItem("profilePic") || "";
   const handleLogout = () => {
     setIsLogin(false);
     localStorage.removeItem("authToken");
@@ -19,7 +29,6 @@ function StickyNavbar() {
     navigate("/");
   };
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -30,13 +39,27 @@ function StickyNavbar() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+  const getUserInitials = (name) => {
+    if (!name) return "";
+
+    const nameParts = name.split(" ");
+    const firstInitial = nameParts[0]?.charAt(0).toUpperCase() || "";
+    const lastInitial =
+      nameParts.length > 1
+        ? nameParts[nameParts.length - 1]?.charAt(0).toUpperCase()
+        : "";
+
+    return `${firstInitial}${lastInitial}`; // ✅ Returns "UJ" for "Ujjwal Jain"
+  };
+
+  const initials = getUserInitials(userName);
 
   return (
     <div className="w-full">
       <Toaster position="top-center" />
       <nav className="sticky top-0 z-50 w-full bg-white shadow-md">
         <div className="flex items-center justify-between px-16 py-8">
-          {/* Logo Section */}
+          {/* Logo */}
           <Link
             to="/"
             className="text-pink-600 font-bold text-3xl tracking-widest hover:scale-105 transition-transform pl-8"
@@ -44,11 +67,11 @@ function StickyNavbar() {
             Swap Tickets
           </Link>
 
-          {/* Right Section */}
+          {/* Right side */}
           <div className="flex items-center gap-12">
             <Link
               to="/resell-tickets"
-              className="text-black font-semibold text-lg cursor-pointer hover:underline hover:text-pink-600 transition-colors"
+              className="text-black font-semibold text-lg hover:underline hover:text-pink-600 transition-colors"
             >
               Re-sell tickets
             </Link>
@@ -68,43 +91,80 @@ function StickyNavbar() {
                 Login/Signup
               </Link>
             ) : (
-              <div className="relative" ref={dropdownRef}>
+              <div
+                className="relative"
+                ref={dropdownRef}
+                onMouseEnter={() => {
+                  clearTimeout(timeoutRef.current);
+                  setIsDropdownOpen(true);
+                }}
+                onMouseLeave={() => {
+                  timeoutRef.current = setTimeout(() => {
+                    setIsDropdownOpen(false);
+                  }, 100);
+                }}
+              >
                 <button
-                  onClick={toggleDropdown}
-                  className="text-black text-lg font-semibold flex items-center space-x-2 cursor-pointer"
+                  onClick={() => setIsDropdownOpen((prev) => !prev)}
+                  className="flex items-center gap-2 px-4 py-2 transition duration-200"
                 >
-                  <span className="font-bold">{userName}</span>
-                  <svg
-                    className="w-4 h-4 text-black"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      clipRule="evenodd"
+                  {userProfileImage && !imageLoadError ? (
+                    <img
+                      src={userProfileImage}
+                      alt="User Avatar"
+                      className="w-10 h-10 rounded-full object-cover"
+                      onError={() => setImageLoadError(true)}
                     />
-                  </svg>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 text-lg font-semibold text-gray-700">
+                      {initials}
+                    </div>
+                  )}
+                  <FaChevronDown
+                    className={`text-gray-500 text-base transform transition-transform duration-200 ${
+                      isDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-300 rounded-lg shadow-xl z-10 animate-fadeIn">
-                    <ul>
-                      <li className="px-6 py-3 text-lg font-bold text-gray-700 hover:bg-gray-100 cursor-pointer">
-                        <Link to="/manage-event">Manage Events</Link>
+                  <div className="absolute right-0 mt-3 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 animate-fadeIn">
+                    <ul className="py-2">
+                      <li>
+                        <Link
+                          to="/manage-event"
+                          className="flex items-center gap-3 px-6 py-3 text-gray-800 hover:bg-gray-100 transition text-base"
+                        >
+                          <FaCalendarCheck className="text-pink-600" />
+                          Manage Events
+                        </Link>
                       </li>
-                      <li className="px-6 py-3 text-lg font-bold text-gray-700 hover:bg-gray-100 cursor-pointer">
-                        <Link to="/my-listings">My Listings</Link>
+                      <li>
+                        <Link
+                          to="/my-listings"
+                          className="flex items-center gap-3 px-6 py-3 text-gray-800 hover:bg-gray-100 transition text-base"
+                        >
+                          <FaListAlt className="text-pink-600" />
+                          My Listings
+                        </Link>
                       </li>
-                      <li className="px-6 py-3 text-lg font-bold text-gray-700 hover:bg-gray-100 cursor-pointer">
-                        <Link to="/my-bookings">My Bookings</Link>
+                      <li>
+                        <Link
+                          to="/my-bookings"
+                          className="flex items-center gap-3 px-6 py-3 text-gray-800 hover:bg-gray-100 transition text-base"
+                        >
+                          <FaTicketAlt className="text-pink-600" />
+                          My Bookings
+                        </Link>
                       </li>
-                      <li
-                        className="px-6 py-3 text-lg font-bold text-gray-700 hover:bg-gray-100 cursor-pointer"
-                        onClick={handleLogout}
-                      >
-                        Logout
+                      <li>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left flex items-center gap-3 px-6 py-3 text-red-600 hover:bg-gray-100 transition text-base"
+                        >
+                          <FaSignOutAlt />
+                          Logout
+                        </button>
                       </li>
                     </ul>
                   </div>
